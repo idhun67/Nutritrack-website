@@ -1,0 +1,1221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="theme-color" content="#083D30">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>AI Nutrition Tracker — by Idhun</title>
+  <meta name="description" content="Know exactly what your body needs. Personalised calorie, macro, vitamin and hydration targets — free, no ads, data stays on your device.">
+  <!-- Open Graph for WhatsApp / social sharing -->
+  <meta property="og:title" content="AI Nutrition Tracker — by Idhun">
+  <meta property="og:description" content="Personalised calorie, macro, vitamin and hydration targets calculated from your unique profile.">
+  <meta property="og:type" content="website">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <style>
+    /* ═══════════════════════════════════════════════════════════════════════
+       RESET & TOKENS
+    ═══════════════════════════════════════════════════════════════════════ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --green:        #1D9E75;
+      --green-dark:   #0F6E56;
+      --green-deep:   #083D30;
+      --green-light:  #E1F5EE;
+      --green-mid:    #B2DDD0;
+      --blue:         #378ADD;
+      --amber:        #EF9F27;
+      --pink:         #D4537E;
+      --purple:       #7F77DD;
+      --white:        #FFFFFF;
+      --off-white:    #F7F9F8;
+      --gray-100:     #F0F2F1;
+      --gray-200:     #E2E6E4;
+      --gray-400:     #9BA8A3;
+      --gray-600:     #5A6A64;
+      --gray-900:     #1A2420;
+      --font-display: 'Plus Jakarta Sans', sans-serif;
+      --font-body:    'Inter', sans-serif;
+      --r-sm:  8px;
+      --r-md:  14px;
+      --r-lg:  22px;
+      --r-xl:  32px;
+      --r-full:999px;
+      --shadow-sm: 0 1px 4px rgba(0,0,0,.08);
+      --shadow-md: 0 4px 20px rgba(0,0,0,.12);
+      --shadow-lg: 0 12px 48px rgba(0,0,0,.18);
+    }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: var(--font-body);
+      color: var(--gray-900);
+      background: var(--white);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+    a  { color: inherit; text-decoration: none; }
+    ul { list-style: none; }
+    img { max-width: 100%; display: block; }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       LAYOUT
+    ═══════════════════════════════════════════════════════════════════════ */
+    .container  { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+    .section    { padding: 72px 0; }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       NAVIGATION — mobile-first hamburger
+    ═══════════════════════════════════════════════════════════════════════ */
+    .nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+      padding: 14px 0;
+      transition: background .3s, box-shadow .3s;
+    }
+    .nav.scrolled {
+      background: rgba(255,255,255,.95);
+      backdrop-filter: blur(14px);
+      box-shadow: var(--shadow-sm);
+    }
+    .nav__inner {
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .nav__logo {
+      display: flex; align-items: center; gap: 10px; z-index: 201;
+    }
+    .nav__logo-icon {
+      width: 34px; height: 34px; border-radius: 9px;
+      background: var(--green);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 17px; flex-shrink: 0;
+    }
+    .nav__logo-text {
+      font-family: var(--font-display);
+      font-weight: 700; font-size: 14px;
+      color: var(--white); line-height: 1.2;
+    }
+    .nav__logo-text span {
+      display: block; font-weight: 400;
+      font-size: 10px; opacity: .7;
+    }
+    .nav.scrolled .nav__logo-text { color: var(--gray-900); }
+
+    /* Hamburger button */
+    .nav__burger {
+      display: flex; flex-direction: column;
+      gap: 5px; cursor: pointer; padding: 4px;
+      background: none; border: none; z-index: 201;
+    }
+    .nav__burger span {
+      display: block; width: 24px; height: 2px;
+      background: var(--white); border-radius: 2px;
+      transition: all .3s;
+    }
+    .nav.scrolled .nav__burger span { background: var(--gray-900); }
+    .nav__burger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+    .nav__burger.open span:nth-child(2) { opacity: 0; }
+    .nav__burger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+    /* When menu open, burger lines always dark */
+    .nav__burger.open span { background: var(--gray-900) !important; }
+
+    /* Mobile menu drawer */
+    .nav__menu {
+      position: fixed; inset: 0;
+      background: var(--white);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 8px;
+      transform: translateX(100%);
+      transition: transform .35s cubic-bezier(.4,0,.2,1);
+      z-index: 200;
+    }
+    .nav__menu.open { transform: translateX(0); }
+    .nav__menu a {
+      font-family: var(--font-display);
+      font-size: 26px; font-weight: 700;
+      color: var(--gray-900); padding: 12px 32px;
+      border-radius: var(--r-md);
+      transition: background .2s, color .2s;
+      min-height: 56px; display: flex; align-items: center;
+    }
+    .nav__menu a:hover, .nav__menu a:active { background: var(--green-light); color: var(--green-dark); }
+    .nav__menu .nav__menu-cta {
+      margin-top: 16px;
+      background: var(--green); color: var(--white) !important;
+      padding: 14px 40px; border-radius: var(--r-sm);
+      font-size: 18px;
+    }
+
+    /* Desktop nav links — hidden on mobile */
+    .nav__links {
+      display: none;
+      gap: 28px;
+    }
+    .nav__links a {
+      font-size: 14px; font-weight: 500;
+      color: rgba(255,255,255,.8); transition: color .2s;
+    }
+    .nav__links a:hover { color: var(--white); }
+    .nav.scrolled .nav__links a { color: var(--gray-600); }
+    .nav.scrolled .nav__links a:hover { color: var(--green); }
+    .nav__links .nav__cta {
+      background: var(--white); color: var(--green-dark) !important;
+      padding: 8px 18px; border-radius: var(--r-sm);
+      font-weight: 600 !important; font-size: 13px !important;
+    }
+    .nav.scrolled .nav__links .nav__cta { background: var(--green); color: var(--white) !important; }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       HERO
+    ═══════════════════════════════════════════════════════════════════════ */
+    .hero {
+      background: linear-gradient(150deg, var(--green-deep) 0%, var(--green-dark) 60%, #0d6b50 100%);
+      padding: 120px 0 72px;
+      position: relative; overflow: hidden;
+      text-align: center;
+    }
+    .hero::before {
+      content: ''; position: absolute;
+      top: -160px; right: -160px;
+      width: 500px; height: 500px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(29,158,117,.2) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero::after {
+      content: ''; position: absolute;
+      bottom: -80px; left: -80px;
+      width: 340px; height: 340px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(55,138,221,.1) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero__inner { position: relative; z-index: 1; }
+    .hero__eyebrow {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(255,255,255,.1);
+      border: 1px solid rgba(255,255,255,.15);
+      border-radius: var(--r-full);
+      padding: 6px 16px; margin-bottom: 20px;
+      font-size: 11px; font-weight: 700; letter-spacing: .08em;
+      text-transform: uppercase; color: var(--green-mid);
+    }
+    .hero__eyebrow-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--green); animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%,100% { opacity:1; transform:scale(1); }
+      50%      { opacity:.5; transform:scale(1.5); }
+    }
+    .hero__title {
+      font-family: var(--font-display);
+      font-size: clamp(34px, 8vw, 58px);
+      font-weight: 800; line-height: 1.08;
+      color: var(--white); margin-bottom: 18px;
+      letter-spacing: -.02em;
+    }
+    .hero__title em {
+      font-style: normal;
+      background: linear-gradient(90deg, #6EDDB8, #4FC3A1);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero__sub {
+      font-size: clamp(15px, 4vw, 18px);
+      color: rgba(255,255,255,.72);
+      line-height: 1.7; margin-bottom: 32px;
+      max-width: 520px; margin-left: auto; margin-right: auto;
+    }
+    .hero__actions {
+      display: flex; flex-direction: column;
+      gap: 12px; align-items: center; margin-bottom: 28px;
+    }
+    .btn {
+      display: inline-flex; align-items: center;
+      justify-content: center; gap: 8px;
+      padding: 14px 28px; border-radius: var(--r-sm);
+      font-family: var(--font-display); font-weight: 600; font-size: 15px;
+      cursor: pointer; transition: all .2s; border: none;
+      min-height: 50px; /* comfortable touch target */
+      width: 100%; max-width: 300px;
+    }
+    .btn--primary {
+      background: var(--green); color: var(--white);
+      box-shadow: 0 4px 20px rgba(29,158,117,.4);
+    }
+    .btn--primary:active { background: var(--green-dark); transform: scale(.98); }
+    .btn--outline {
+      background: rgba(255,255,255,.08); color: var(--white);
+      border: 1px solid rgba(255,255,255,.22);
+    }
+    .btn--outline:active { background: rgba(255,255,255,.15); }
+    .hero__trust {
+      display: flex; flex-wrap: wrap;
+      align-items: center; justify-content: center;
+      gap: 6px 16px;
+      font-size: 12px; color: rgba(255,255,255,.5);
+    }
+    .hero__trust-item { display: flex; align-items: center; gap: 5px; }
+
+    /* ── Mini app card in hero (mobile) ─────────────────────────────────── */
+    .hero__app-card {
+      background: rgba(255,255,255,.07);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: var(--r-lg);
+      padding: 20px; margin: 36px auto 0;
+      max-width: 340px; text-align: left;
+    }
+    .hac__top {
+      display: flex; align-items: center;
+      justify-content: space-between; margin-bottom: 16px;
+    }
+    .hac__title {
+      font-family: var(--font-display);
+      font-size: 13px; font-weight: 700; color: var(--white);
+    }
+    .hac__sub { font-size: 10px; color: rgba(255,255,255,.45); margin-top: 2px; }
+    .hac__cal {
+      text-align: right;
+    }
+    .hac__cal-num {
+      font-family: var(--font-display);
+      font-size: 28px; font-weight: 800; color: var(--white); line-height: 1;
+    }
+    .hac__cal-lbl { font-size: 10px; color: rgba(255,255,255,.45); }
+    .hac__macro { margin-bottom: 9px; }
+    .hac__macro-top {
+      display: flex; justify-content: space-between;
+      font-size: 11px; margin-bottom: 4px;
+    }
+    .hac__macro-nm { color: rgba(255,255,255,.6); font-weight: 500; }
+    .hac__macro-vl { color: var(--white); }
+    .hac__bar-bg { height: 4px; background: rgba(255,255,255,.1); border-radius: 2px; overflow: hidden; }
+    .hac__bar { height: 4px; border-radius: 2px; }
+    .hac__badge {
+      display: inline-block; margin-top: 14px;
+      background: var(--green); color: var(--white);
+      font-size: 10px; font-weight: 700;
+      padding: 4px 10px; border-radius: var(--r-full);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       STICKY BOTTOM CTA — mobile only
+    ═══════════════════════════════════════════════════════════════════════ */
+    .sticky-cta {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: var(--green-deep);
+      border-top: 1px solid rgba(255,255,255,.1);
+      padding: 12px 20px 20px;
+      z-index: 150;
+      display: flex; gap: 10px;
+      transform: translateY(100%);
+      transition: transform .4s cubic-bezier(.4,0,.2,1);
+    }
+    .sticky-cta.visible { transform: translateY(0); }
+    .sticky-cta a {
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      padding: 13px 12px; border-radius: var(--r-sm);
+      font-family: var(--font-display); font-size: 13px; font-weight: 700;
+      min-height: 48px;
+    }
+    .sticky-cta__android { background: var(--green); color: var(--white); }
+    .sticky-cta__ios { background: rgba(255,255,255,.1); color: var(--white); border: 1px solid rgba(255,255,255,.2); }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       STATS BAND
+    ═══════════════════════════════════════════════════════════════════════ */
+    .stats-band { background: var(--green-light); padding: 36px 0; }
+    .stats-band__inner {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+    .stat { text-align: center; }
+    .stat__num {
+      font-family: var(--font-display);
+      font-size: 36px; font-weight: 800;
+      color: var(--green-dark); line-height: 1;
+    }
+    .stat__label { font-size: 13px; color: var(--gray-600); margin-top: 4px; }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       SECTION HEADERS
+    ═══════════════════════════════════════════════════════════════════════ */
+    .section__eyebrow {
+      font-size: 11px; font-weight: 700; letter-spacing: .1em;
+      text-transform: uppercase; color: var(--green); margin-bottom: 10px;
+    }
+    .section__title {
+      font-family: var(--font-display);
+      font-size: clamp(26px, 6vw, 42px);
+      font-weight: 800; line-height: 1.15;
+      letter-spacing: -.02em; color: var(--gray-900); margin-bottom: 14px;
+    }
+    .section__sub {
+      font-size: 16px; color: var(--gray-600); line-height: 1.7;
+      max-width: 520px;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       HOW IT WORKS
+    ═══════════════════════════════════════════════════════════════════════ */
+    .how { background: var(--white); }
+    .how__steps {
+      display: flex; flex-direction: column;
+      gap: 16px; margin-top: 40px;
+    }
+    .step-card {
+      background: var(--off-white);
+      border-radius: var(--r-lg);
+      padding: 24px 20px;
+      position: relative; overflow: hidden;
+      display: flex; gap: 16px; align-items: flex-start;
+    }
+    .step-card__num {
+      font-family: var(--font-display);
+      font-size: 13px; font-weight: 800;
+      color: var(--white);
+      background: var(--green);
+      width: 32px; height: 32px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; margin-top: 2px;
+    }
+    .step-card__icon { font-size: 24px; margin-bottom: 8px; }
+    .step-card__title {
+      font-family: var(--font-display);
+      font-size: 17px; font-weight: 700;
+      color: var(--gray-900); margin-bottom: 6px;
+    }
+    .step-card__text { font-size: 14px; color: var(--gray-600); line-height: 1.65; }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       FEATURES
+    ═══════════════════════════════════════════════════════════════════════ */
+    .features { background: var(--off-white); }
+    .feature-list { display: flex; flex-direction: column; gap: 0; margin-top: 40px; }
+    .feature-item {
+      display: flex; gap: 16px; align-items: flex-start;
+      padding: 20px 0;
+      border-bottom: 1px solid var(--gray-200);
+    }
+    .feature-item:last-child { border-bottom: none; }
+    .feature-item__icon {
+      width: 44px; height: 44px; border-radius: 12px;
+      background: var(--green-light); flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center; font-size: 20px;
+    }
+    .feature-item__title {
+      font-family: var(--font-display);
+      font-size: 16px; font-weight: 700;
+      color: var(--gray-900); margin-bottom: 4px;
+    }
+    .feature-item__text { font-size: 14px; color: var(--gray-600); line-height: 1.65; }
+
+    /* Live stats card */
+    .live-card {
+      background: linear-gradient(135deg, var(--green-dark), var(--green-deep));
+      border-radius: var(--r-lg); padding: 24px 20px;
+      margin-top: 28px; box-shadow: var(--shadow-lg);
+    }
+    .live-card__label {
+      font-size: 10px; font-weight: 700; letter-spacing: .08em;
+      text-transform: uppercase; color: var(--green-mid); margin-bottom: 14px;
+    }
+    .lc-row {
+      display: flex; justify-content: space-between;
+      align-items: center; margin-bottom: 10px;
+    }
+    .lc-name { font-size: 13px; color: rgba(255,255,255,.8); }
+    .lc-bar { flex: 1; margin: 0 12px; height: 4px; background: rgba(255,255,255,.1); border-radius: 2px; overflow: hidden; }
+    .lc-fill { height: 4px; border-radius: 2px; }
+    .lc-val { font-size: 12px; font-weight: 600; color: var(--white); min-width: 60px; text-align: right; }
+    .lc-divider { height: 1px; background: rgba(255,255,255,.08); margin: 14px 0; }
+    .lc-water { display: flex; gap: 6px; flex-wrap: wrap; }
+    .lc-cup { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 13px; }
+    .lc-cup.f { background: rgba(55,138,221,.3); border: 1px solid rgba(55,138,221,.5); }
+    .lc-cup.e { background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); }
+    .lc-reco { display: flex; flex-direction: column; gap: 8px; }
+    .lc-reco-row { display: flex; justify-content: space-between; align-items: center; }
+    .lc-reco-food { font-size: 12px; color: rgba(255,255,255,.8); }
+    .lc-reco-tag { font-size: 10px; background: rgba(29,158,117,.3); color: var(--green-mid); padding: 3px 8px; border-radius: var(--r-full); }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       NUTRIENTS GRID
+    ═══════════════════════════════════════════════════════════════════════ */
+    .nutrients { background: var(--white); }
+    .nutrients__grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px; margin-top: 40px;
+    }
+    .nutrient-card {
+      border: 1px solid var(--gray-200);
+      border-radius: var(--r-md); padding: 18px 14px;
+      transition: border-color .2s;
+    }
+    .nutrient-card:active { border-color: var(--green); }
+    .nutrient-card__icon { font-size: 24px; margin-bottom: 10px; }
+    .nutrient-card__name {
+      font-family: var(--font-display);
+      font-size: 14px; font-weight: 700;
+      color: var(--gray-900); margin-bottom: 5px;
+    }
+    .nutrient-card__text { font-size: 12px; color: var(--gray-600); line-height: 1.6; }
+    .nutrient-card__badge {
+      display: inline-block; margin-top: 8px;
+      padding: 3px 8px; border-radius: var(--r-full);
+      font-size: 10px; font-weight: 600;
+      background: var(--green-light); color: var(--green-dark);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       SCIENCE
+    ═══════════════════════════════════════════════════════════════════════ */
+    .science { background: var(--green-deep); padding: 72px 0; }
+    .science__eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--green-mid); margin-bottom: 10px; }
+    .science__title {
+      font-family: var(--font-display);
+      font-size: clamp(26px, 6vw, 42px);
+      font-weight: 800; color: var(--white);
+      line-height: 1.15; letter-spacing: -.02em; margin-bottom: 16px;
+    }
+    .science__sub { font-size: 15px; color: rgba(255,255,255,.6); line-height: 1.75; margin-bottom: 24px; }
+    .science__pills { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 36px; }
+    .science__pill {
+      padding: 7px 14px; border-radius: var(--r-full);
+      background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.12);
+      font-size: 12px; color: rgba(255,255,255,.75); font-weight: 500;
+    }
+    .formula-card {
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: var(--r-lg); padding: 24px 20px;
+    }
+    .formula-card__label {
+      font-size: 10px; font-weight: 700; letter-spacing: .1em;
+      text-transform: uppercase; color: var(--green-mid); margin-bottom: 14px;
+    }
+    .formula {
+      font-family: 'Courier New', monospace; font-size: 13px;
+      color: var(--white); line-height: 2;
+      background: rgba(0,0,0,.3); border-radius: var(--r-sm);
+      padding: 16px; margin-bottom: 20px;
+      overflow-x: auto;
+    }
+    .formula em { color: var(--green-mid); font-style: normal; }
+    .formula-steps { display: flex; flex-direction: column; gap: 12px; }
+    .formula-step { display: flex; gap: 12px; align-items: flex-start; font-size: 13px; color: rgba(255,255,255,.65); }
+    .formula-step__num {
+      width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
+      background: var(--green); color: var(--white);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 700;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       TESTIMONIALS
+    ═══════════════════════════════════════════════════════════════════════ */
+    .testimonials { background: var(--off-white); }
+    .testi-scroll {
+      display: flex; gap: 16px;
+      overflow-x: auto; margin-top: 32px;
+      padding-bottom: 12px; scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+    }
+    .testi-scroll::-webkit-scrollbar { display: none; }
+    .testi-card {
+      background: var(--white); border-radius: var(--r-lg);
+      padding: 24px 20px; flex-shrink: 0;
+      width: calc(100vw - 56px); max-width: 340px;
+      scroll-snap-align: start;
+      box-shadow: var(--shadow-sm);
+    }
+    .testi-stars { color: var(--amber); font-size: 14px; margin-bottom: 12px; }
+    .testi-text { font-size: 14px; color: var(--gray-600); line-height: 1.7; margin-bottom: 18px; font-style: italic; }
+    .testi-author { display: flex; align-items: center; gap: 10px; }
+    .testi-avatar {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: var(--green-light);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 13px; color: var(--green-dark);
+    }
+    .testi-name { font-weight: 600; font-size: 13px; color: var(--gray-900); }
+    .testi-role { font-size: 11px; color: var(--gray-400); }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       FAQ
+    ═══════════════════════════════════════════════════════════════════════ */
+    .faq { background: var(--white); }
+    .faq__list { margin-top: 36px; display: flex; flex-direction: column; gap: 0; }
+    .faq__item {
+      border-bottom: 1px solid var(--gray-200);
+    }
+    .faq__q {
+      width: 100%; text-align: left;
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 18px 0; gap: 12px;
+      font-family: var(--font-display); font-size: 15px; font-weight: 600;
+      color: var(--gray-900); background: none; border: none; cursor: pointer;
+      min-height: 56px;
+    }
+    .faq__q-icon {
+      font-size: 20px; color: var(--green); flex-shrink: 0;
+      transition: transform .3s; line-height: 1;
+    }
+    .faq__item.open .faq__q-icon { transform: rotate(45deg); }
+    .faq__a {
+      font-size: 14px; color: var(--gray-600); line-height: 1.7;
+      max-height: 0; overflow: hidden;
+      transition: max-height .35s ease, padding .35s ease;
+    }
+    .faq__item.open .faq__a { max-height: 300px; padding-bottom: 18px; }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       CTA SECTION
+    ═══════════════════════════════════════════════════════════════════════ */
+    .cta-section {
+      background: linear-gradient(135deg, var(--green) 0%, var(--green-dark) 100%);
+      padding: 72px 0 120px; /* extra bottom for sticky bar */
+      text-align: center;
+    }
+    .cta-section__title {
+      font-family: var(--font-display);
+      font-size: clamp(26px, 6vw, 44px);
+      font-weight: 800; color: var(--white);
+      line-height: 1.15; letter-spacing: -.02em; margin-bottom: 14px;
+    }
+    .cta-section__sub {
+      font-size: 16px; color: rgba(255,255,255,.75);
+      margin-bottom: 32px; max-width: 440px;
+      margin-left: auto; margin-right: auto;
+    }
+    .cta-section__actions { display: flex; flex-direction: column; gap: 12px; align-items: center; }
+    .btn--white { background: var(--white); color: var(--green-dark); max-width: 280px; }
+    .btn--outline-white {
+      background: transparent; color: var(--white);
+      border: 2px solid rgba(255,255,255,.4); max-width: 280px;
+    }
+    .cta-section__note { margin-top: 20px; font-size: 12px; color: rgba(255,255,255,.45); }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       FOOTER
+    ═══════════════════════════════════════════════════════════════════════ */
+    .footer { background: var(--green-deep); padding: 48px 0 100px; } /* bottom pad for sticky CTA */
+    .footer__brand { margin-bottom: 32px; }
+    .footer__brand-text {
+      font-size: 13px; color: rgba(255,255,255,.4); line-height: 1.7;
+      margin-top: 12px;
+    }
+    .footer__cols {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 28px 20px; margin-bottom: 32px;
+    }
+    .footer__col-title {
+      font-size: 11px; font-weight: 700; letter-spacing: .08em;
+      text-transform: uppercase; color: rgba(255,255,255,.35); margin-bottom: 14px;
+    }
+    .footer__col-links { display: flex; flex-direction: column; gap: 10px; }
+    .footer__col-links a {
+      font-size: 14px; color: rgba(255,255,255,.55);
+      transition: color .2s; min-height: 24px; display: inline-flex; align-items: center;
+    }
+    .footer__col-links a:hover, .footer__col-links a:active { color: var(--white); }
+    .footer__bottom {
+      padding-top: 24px; border-top: 1px solid rgba(255,255,255,.08);
+      font-size: 12px; color: rgba(255,255,255,.3);
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .footer__bottom a { color: var(--green-mid); }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       SCROLL ANIMATIONS
+    ═══════════════════════════════════════════════════════════════════════ */
+    .fade-up {
+      opacity: 0; transform: translateY(24px);
+      transition: opacity .6s ease, transform .6s ease;
+    }
+    .fade-up.visible { opacity: 1; transform: translateY(0); }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       DESKTOP overrides (≥ 768px)
+    ═══════════════════════════════════════════════════════════════════════ */
+    @media (min-width: 768px) {
+      .section { padding: 96px 0; }
+      .container { padding: 0 32px; }
+
+      /* Nav — show links, hide burger */
+      .nav__burger { display: none; }
+      .nav__links   { display: flex; }
+      .nav__menu    { display: none !important; }
+
+      /* Hero */
+      .hero { text-align: left; padding: 160px 0 100px; }
+      .hero__inner { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center; }
+      .hero__sub   { margin-left: 0; margin-right: 0; }
+      .hero__actions { flex-direction: row; }
+      .btn { width: auto; max-width: none; }
+      .hero__trust   { justify-content: flex-start; }
+      .hero__app-card { margin: 0; max-width: 100%; }
+
+      /* Stats */
+      .stats-band__inner { grid-template-columns: repeat(4, 1fr); }
+
+      /* How */
+      .how__steps { flex-direction: row; gap: 24px; }
+      .step-card  { flex-direction: column; }
+      .step-card__num { width: 36px; height: 36px; font-size: 15px; margin-top: 0; margin-bottom: 14px; }
+
+      /* Nutrients */
+      .nutrients__grid { grid-template-columns: repeat(3, 1fr); gap: 16px; }
+
+      /* Footer */
+      .footer__cols { grid-template-columns: repeat(4, 1fr); }
+      .footer { padding-bottom: 48px; }
+
+      /* Hide sticky CTA on desktop */
+      .sticky-cta { display: none !important; }
+
+      /* CTA section */
+      .cta-section { padding: 96px 0; }
+      .cta-section__actions { flex-direction: row; justify-content: center; }
+
+      /* Testimonials */
+      .testi-scroll { overflow-x: visible; flex-wrap: wrap; }
+      .testi-card { width: auto; flex: 1; min-width: 240px; }
+
+      /* Science */
+      .science__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: start; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .fade-up { opacity: 1; transform: none; transition: none; }
+      @keyframes pulse { from, to { opacity:1; transform:scale(1); } }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     NAV
+══════════════════════════════════════════════════════════════════════════ -->
+<nav class="nav" id="nav" role="navigation" aria-label="Main navigation">
+  <div class="container">
+    <div class="nav__inner">
+
+      <a href="#" class="nav__logo" aria-label="AI Nutrition Tracker home">
+        <div class="nav__logo-icon">🧠</div>
+        <div class="nav__logo-text">
+          AI Nutrition Tracker
+          <span>by Idhun</span>
+        </div>
+      </a>
+
+      <!-- Desktop links -->
+      <ul class="nav__links" role="list">
+        <li><a href="#how-it-works">How it works</a></li>
+        <li><a href="#features">Features</a></li>
+        <li><a href="#science">Science</a></li>
+        <li><a href="#faq">FAQ</a></li>
+        <li><a href="#download" class="nav__cta">Get the app</a></li>
+      </ul>
+
+      <!-- Hamburger (mobile) -->
+      <button class="nav__burger" id="burger" aria-label="Open menu" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Mobile drawer -->
+  <div class="nav__menu" id="menu" role="dialog" aria-label="Mobile navigation">
+    <a href="#how-it-works" class="menu-link">How it works</a>
+    <a href="#features"     class="menu-link">Features</a>
+    <a href="#science"      class="menu-link">Science</a>
+    <a href="#faq"          class="menu-link">FAQ</a>
+    <a href="#download"     class="nav__menu-cta menu-link">Get the app</a>
+  </div>
+</nav>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     HERO
+══════════════════════════════════════════════════════════════════════════ -->
+<section class="hero" aria-label="Hero">
+  <div class="container">
+    <div class="hero__inner">
+
+      <!-- Copy -->
+      <div class="hero__copy">
+        <div class="hero__eyebrow">
+          <div class="hero__eyebrow-dot"></div>
+          AI-powered nutrition
+        </div>
+        <h1 class="hero__title">
+          Know exactly what<br>your body <em>needs.</em>
+        </h1>
+        <p class="hero__sub">
+          Personalised calorie, macro, vitamin and hydration targets —
+          calculated from your unique profile using the Mifflin-St Jeor
+          formula and WHO / ICMR guidelines.
+        </p>
+        <div class="hero__actions">
+          <a href="#download" class="btn btn--primary">📱 Download free</a>
+          <a href="#how-it-works" class="btn btn--outline">See how it works</a>
+        </div>
+        <div class="hero__trust">
+          <div class="hero__trust-item">✓ Free forever</div>
+          <div class="hero__trust-item">✓ No ads</div>
+          <div class="hero__trust-item">✓ Data on your device</div>
+        </div>
+      </div>
+
+      <!-- Mini app preview card (desktop right col / mobile below copy) -->
+      <div class="hero__app-card" aria-hidden="true">
+        <div class="hac__top">
+          <div>
+            <div class="hac__title">Hi Idhun 👋</div>
+            <div class="hac__sub">Thursday, 26 Jun</div>
+          </div>
+          <div class="hac__cal">
+            <div class="hac__cal-num" id="hero-cal">0</div>
+            <div class="hac__cal-lbl">kcal eaten</div>
+          </div>
+        </div>
+        <div class="hac__macro">
+          <div class="hac__macro-top"><span class="hac__macro-nm">Protein</span><span class="hac__macro-vl">78g / 126g</span></div>
+          <div class="hac__bar-bg"><div class="hac__bar" style="width:62%;background:#1D9E75"></div></div>
+        </div>
+        <div class="hac__macro">
+          <div class="hac__macro-top"><span class="hac__macro-nm">Carbs</span><span class="hac__macro-vl">142g / 241g</span></div>
+          <div class="hac__bar-bg"><div class="hac__bar" style="width:59%;background:#378ADD"></div></div>
+        </div>
+        <div class="hac__macro">
+          <div class="hac__macro-top"><span class="hac__macro-nm">Fat</span><span class="hac__macro-vl">38g / 60g</span></div>
+          <div class="hac__bar-bg"><div class="hac__bar" style="width:63%;background:#D4537E"></div></div>
+        </div>
+        <div class="hac__badge">580 kcal remaining today</div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     STATS
+══════════════════════════════════════════════════════════════════════════ -->
+<div class="stats-band" aria-label="App statistics">
+  <div class="container">
+    <div class="stats-band__inner">
+      <div class="stat fade-up"><div class="stat__num">9</div><div class="stat__label">Nutrients tracked daily</div></div>
+      <div class="stat fade-up"><div class="stat__num">25+</div><div class="stat__label">Foods in database</div></div>
+      <div class="stat fade-up"><div class="stat__num">100%</div><div class="stat__label">Free, no subscription</div></div>
+      <div class="stat fade-up"><div class="stat__num">0</div><div class="stat__label">Ads. Ever.</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     HOW IT WORKS
+══════════════════════════════════════════════════════════════════════════ -->
+<section class="how section" id="how-it-works" aria-label="How it works">
+  <div class="container">
+    <div class="section__eyebrow">How it works</div>
+    <h2 class="section__title">Set up once.<br>Track every day.</h2>
+    <p class="section__sub">The app adapts to your body, not a generic average.</p>
+    <div class="how__steps">
+      <div class="step-card fade-up">
+        <div class="step-card__num">1</div>
+        <div>
+          <div class="step-card__icon">📋</div>
+          <h3 class="step-card__title">Enter your profile</h3>
+          <p class="step-card__text">Sex, age, height, weight, goal (lose / maintain / gain) and lifestyle level. Takes under a minute.</p>
+        </div>
+      </div>
+      <div class="step-card fade-up">
+        <div class="step-card__num">2</div>
+        <div>
+          <div class="step-card__icon">🧮</div>
+          <h3 class="step-card__title">Get your targets</h3>
+          <p class="step-card__text">BMR, TDEE and personalised daily targets for calories, protein, carbs, fat, fiber and 5 vitamins — all calculated automatically.</p>
+        </div>
+      </div>
+      <div class="step-card fade-up">
+        <div class="step-card__num">3</div>
+        <div>
+          <div class="step-card__icon">🍽️</div>
+          <h3 class="step-card__title">Log and track</h3>
+          <p class="step-card__text">Search the food database or enter manually. After every meal the app tells you exactly what to eat next.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     FEATURES
+══════════════════════════════════════════════════════════════════════════ -->
+<section class="features section" id="features" aria-label="App features">
+  <div class="container">
+    <div class="section__eyebrow">Features</div>
+    <h2 class="section__title">Everything you need.<br>Nothing you don't.</h2>
+
+    <div class="feature-list">
+      <div class="feature-item fade-up">
+        <div class="feature-item__icon">🎯</div>
+        <div>
+          <div class="feature-item__title">Live calorie ring</div>
+          <div class="feature-item__text">A circular progress arc shows calories consumed vs your daily goal in real time — updates the moment you log a meal.</div>
+        </div>
+      </div>
+      <div class="feature-item fade-up">
+        <div class="feature-item__icon">💪</div>
+        <div>
+          <div class="feature-item__title">Macro progress bars</div>
+          <div class="feature-item__text">Protein, carbs and fat tracked separately with colour-coded bars. Know your balance, not just your calorie count.</div>
+        </div>
+      </div>
+      <div class="feature-item fade-up">
+        <div class="feature-item__icon">💡</div>
+        <div>
+          <div class="feature-item__title">Smart recommendations</div>
+          <div class="feature-item__text">After each meal the app checks your remaining needs and suggests specific foods — protein, carbs, or vitamin C, whatever you're short on.</div>
+        </div>
+      </div>
+      <div class="feature-item fade-up">
+        <div class="feature-item__icon">✍️</div>
+        <div>
+          <div class="feature-item__title">Manual food entry</div>
+          <div class="feature-item__text">Home-cooked dal not in the database? Enter the name and macros manually. Treated exactly like any other meal.</div>
+        </div>
+      </div>
+      <div class="feature-item fade-up">
+        <div class="feature-item__icon">💧</div>
+        <div>
+          <div class="feature-item__title">Water tracker</div>
+          <div class="feature-item__text">Tap cups to log water. Your daily goal is auto-calculated from your body weight (35ml per kg).</div>
+        </div>
+      </div>
+      <div class="feature-item fade-up">
+        <div class="feature-item__icon">💊</div>
+        <div>
+          <div class="feature-item__title">Vitamin dashboard</div>
+          <div class="feature-item__text">Progress bars for Vitamins A, B1, C, D and B12. Colour-coded green / amber / red so you know at a glance what needs attention.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Live data card -->
+    <div class="live-card fade-up" aria-hidden="true">
+      <div class="live-card__label">📊 Today's nutrition at a glance</div>
+      <div class="lc-row"><span class="lc-name">Protein</span><div class="lc-bar"><div class="lc-fill" style="width:62%;background:#1D9E75"></div></div><span class="lc-val">78 / 126g</span></div>
+      <div class="lc-row"><span class="lc-name">Carbs</span><div class="lc-bar"><div class="lc-fill" style="width:59%;background:#378ADD"></div></div><span class="lc-val">142 / 241g</span></div>
+      <div class="lc-row"><span class="lc-name">Fat</span><div class="lc-bar"><div class="lc-fill" style="width:63%;background:#D4537E"></div></div><span class="lc-val">38 / 60g</span></div>
+      <div class="lc-row"><span class="lc-name">Fiber</span><div class="lc-bar"><div class="lc-fill" style="width:45%;background:#EF9F27"></div></div><span class="lc-val">17 / 38g</span></div>
+      <div class="lc-divider"></div>
+      <div class="live-card__label">💧 Hydration — 5 / 8 cups</div>
+      <div class="lc-water">
+        <div class="lc-cup f">💧</div><div class="lc-cup f">💧</div>
+        <div class="lc-cup f">💧</div><div class="lc-cup f">💧</div>
+        <div class="lc-cup f">💧</div><div class="lc-cup e"></div>
+        <div class="lc-cup e"></div><div class="lc-cup e"></div>
+      </div>
+      <div class="lc-divider"></div>
+      <div class="live-card__label">💡 What to eat next</div>
+      <div class="lc-reco">
+        <div class="lc-reco-row"><span class="lc-reco-food">Grilled chicken (100g)</span><span class="lc-reco-tag">+31g protein</span></div>
+        <div class="lc-reco-row"><span class="lc-reco-food">Orange (100g)</span><span class="lc-reco-tag">Vitamin C</span></div>
+        <div class="lc-reco-row"><span class="lc-reco-food">Brown rice (100g)</span><span class="lc-reco-tag">Complex carbs</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     NUTRIENTS
+══════════════════════════════════════════════════════════════════════════ -->
+<section class="nutrients section" aria-label="Nutrients tracked">
+  <div class="container">
+    <div class="section__eyebrow">What we track</div>
+    <h2 class="section__title">9 nutrients.<br>Every single day.</h2>
+    <p class="section__sub">Most apps only count calories. We track everything your body actually needs.</p>
+    <div class="nutrients__grid">
+      <div class="nutrient-card fade-up"><div class="nutrient-card__icon">🔥</div><div class="nutrient-card__name">Calories</div><div class="nutrient-card__text">Adjusted for your goal and activity level.</div><div class="nutrient-card__badge">TDEE adjusted</div></div>
+      <div class="nutrient-card fade-up"><div class="nutrient-card__icon">💪</div><div class="nutrient-card__name">Protein</div><div class="nutrient-card__text">1.8g per kg body weight for muscle and repair.</div><div class="nutrient-card__badge">Per kg bodyweight</div></div>
+      <div class="nutrient-card fade-up"><div class="nutrient-card__icon">🌾</div><div class="nutrient-card__name">Carbs</div><div class="nutrient-card__text">45% of daily calories — your primary energy source.</div><div class="nutrient-card__badge">45% of calories</div></div>
+      <div class="nutrient-card fade-up"><div class="nutrient-card__icon">🥑</div><div class="nutrient-card__name">Fat</div><div class="nutrient-card__text">25% of calories for hormones and absorption.</div><div class="nutrient-card__badge">25% of calories</div></div>
+      <div class="nutrient-card fade-up"><div class="nutrient-card__icon">🥦</div><div class="nutrient-card__name">Fiber</div><div class="nutrient-card__text">38g / 25g (M/F) per ICMR guidelines.</div><div class="nutrient-card__badge">ICMR guidelines</div></div>
+      <div class="nutrient-card fade-up"><div class="nutrient-card__icon">🥕</div><div class="nutrient-card__name">Vitamin A</div><div class="nutrient-card__text">Vision, immunity and cell growth.</div><div class="nutrient-card__badge">WHO standard</div></div>
+      <div class="nutrient-card fade-up"><div class="nutrient-card__icon">🌞</div><div class="nutrient-card__name">Vitamin D</div><div class="nutrient-card__text">15mcg — critical for bones, often deficient in India.</div><div class="nutrient-card__badge">15mcg / day</div></div>
+      <div class="nutrient-card fade-up"><div class="nutrient-card__icon">🍊</div><div class="nutrient-card__name">Vitamin C</div><div class="nutrient-card__text">Immune defence and skin health.</div><div class="nutrient-card__badge">Antioxidant</div></div>
+      <div class="nutrient-card fade-up"><div class="nutrient-card__icon">🥩</div><div class="nutrient-card__name">B1 and B12</div><div class="nutrient-card__text">Energy metabolism and nerve health. Often missed on vegetarian diets.</div><div class="nutrient-card__badge">Often deficient</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     SCIENCE
+══════════════════════════════════════════════════════════════════════════ -->
+<section class="science" id="science" aria-label="The science behind the app">
+  <div class="container">
+    <div class="science__grid">
+      <div>
+        <div class="science__eyebrow">The science</div>
+        <h2 class="science__title">Not guesswork.<br>Peer-reviewed formulas.</h2>
+        <p class="science__sub">Your calorie target is calculated from your actual body measurements using the most accurate BMR formula available, then adjusted for how you live.</p>
+        <div class="science__pills">
+          <div class="science__pill">Mifflin-St Jeor BMR</div>
+          <div class="science__pill">WHO micronutrient guidelines</div>
+          <div class="science__pill">ICMR dietary reference intakes</div>
+          <div class="science__pill">Harris-Benedict activity factors</div>
+        </div>
+      </div>
+      <div class="formula-card fade-up" aria-label="BMR formula breakdown">
+        <div class="formula-card__label">Mifflin-St Jeor formula</div>
+        <div class="formula">
+          BMR = <em>10</em> × weight(kg)<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ <em>6.25</em> × height(cm)<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;− <em>5</em> × age(years)<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ <em>5</em> (male) / <em>−161</em> (female)
+        </div>
+        <div class="formula-steps">
+          <div class="formula-step"><div class="formula-step__num">1</div><div>Calculate your Basal Metabolic Rate (BMR) from body measurements</div></div>
+          <div class="formula-step"><div class="formula-step__num">2</div><div>Multiply by activity factor (1.2 → 1.725) to get TDEE</div></div>
+          <div class="formula-step"><div class="formula-step__num">3</div><div>Adjust: −500 kcal (lose), 0 (maintain), +300 kcal (gain)</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     TESTIMONIALS
+══════════════════════════════════════════════════════════════════════════ -->
+<section class="testimonials section" aria-label="User reviews">
+  <div class="container">
+    <div class="section__eyebrow">Reviews</div>
+    <h2 class="section__title">What users are saying</h2>
+    <div class="testi-scroll" role="list">
+      <div class="testi-card fade-up" role="listitem">
+        <div class="testi-stars">★★★★★</div>
+        <p class="testi-text">"Finally an app that explains why my calorie target is what it is. The formula breakdown is so reassuring — I know this isn't a random number."</p>
+        <div class="testi-author"><div class="testi-avatar">R</div><div><div class="testi-name">Rohit M.</div><div class="testi-role">Software engineer, Pune</div></div></div>
+      </div>
+      <div class="testi-card fade-up" role="listitem">
+        <div class="testi-stars">★★★★★</div>
+        <p class="testi-text">"The 'what to eat next' feature is a game changer. After lunch it told me I was low on Vitamin C and suggested an orange. Simple but brilliant."</p>
+        <div class="testi-author"><div class="testi-avatar">P</div><div><div class="testi-name">Priya S.</div><div class="testi-role">Fitness trainer, Mumbai</div></div></div>
+      </div>
+      <div class="testi-card fade-up" role="listitem">
+        <div class="testi-stars">★★★★★</div>
+        <p class="testi-text">"I've tried 6 nutrition apps. This is the only one that tracks vitamins properly. B12 tracking alone makes it worth it for vegetarians like me."</p>
+        <div class="testi-author"><div class="testi-avatar">A</div><div><div class="testi-name">Anika T.</div><div class="testi-role">Medical student, Delhi</div></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     FAQ
+══════════════════════════════════════════════════════════════════════════ -->
+<section class="faq section" id="faq" aria-label="Frequently asked questions">
+  <div class="container">
+    <div class="section__eyebrow">FAQ</div>
+    <h2 class="section__title">Common questions</h2>
+    <div class="faq__list">
+      <div class="faq__item">
+        <button class="faq__q" aria-expanded="false">Is the app really free?<span class="faq__q-icon">+</span></button>
+        <div class="faq__a">Yes — completely free. No subscription, no premium tier, no ads. The app is built as a personal project by Idhun and will remain free.</div>
+      </div>
+      <div class="faq__item">
+        <button class="faq__q" aria-expanded="false">Where is my data stored?<span class="faq__q-icon">+</span></button>
+        <div class="faq__a">Everything stays on your device. The app does not send your data to any server. No account, no cloud, no sign-in required. If you uninstall the app your data is deleted.</div>
+      </div>
+      <div class="faq__item">
+        <button class="faq__q" aria-expanded="false">How accurate are the calorie targets?<span class="faq__q-icon">+</span></button>
+        <div class="faq__a">The app uses the Mifflin-St Jeor formula, which is considered the most accurate BMR formula for most adults. Studies show it is accurate to within 10% for the majority of people. The result is a very good starting point — adjust up or down based on how your weight changes over a few weeks.</div>
+      </div>
+      <div class="faq__item">
+        <button class="faq__q" aria-expanded="false">What if my food is not in the database?<span class="faq__q-icon">+</span></button>
+        <div class="faq__a">You can enter any food manually. Just type the name and fill in the calories and macros (protein, carbs, fat, fiber). The information is usually on the packet of any packaged food, or you can search for it on Google.</div>
+      </div>
+      <div class="faq__item">
+        <button class="faq__q" aria-expanded="false">Is it available on Android and iOS?<span class="faq__q-icon">+</span></button>
+        <div class="faq__a">The app is currently in development using React Native and Expo, which means it will work on both Android and iOS. The Android version will be released first on the Google Play Store, followed by iOS on the App Store.</div>
+      </div>
+      <div class="faq__item">
+        <button class="faq__q" aria-expanded="false">Can I change my goal after setting up?<span class="faq__q-icon">+</span></button>
+        <div class="faq__a">Yes. Open the Profile tab in the app and tap "Edit profile". You can update your weight, goal, lifestyle, or any other detail. The app recalculates all your targets immediately.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     CTA
+══════════════════════════════════════════════════════════════════════════ -->
+<section class="cta-section" id="download" aria-label="Download the app">
+  <div class="container">
+    <h2 class="cta-section__title">Start knowing what<br>your body needs.</h2>
+    <p class="cta-section__sub">Free. No subscription. No ads. Your data stays on your device — always.</p>
+    <div class="cta-section__actions">
+      <a href="#" class="btn btn--white">🤖 Android — Coming soon</a>
+      <a href="#" class="btn btn--outline-white">🍎 iOS — Coming soon</a>
+    </div>
+    <div class="cta-section__note">Built with React Native + Expo · Powered by Mifflin-St Jeor + WHO / ICMR guidelines</div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     FOOTER
+══════════════════════════════════════════════════════════════════════════ -->
+<footer class="footer" aria-label="Site footer">
+  <div class="container">
+    <div class="footer__brand">
+      <div class="nav__logo">
+        <div class="nav__logo-icon">🧠</div>
+        <div class="nav__logo-text">AI Nutrition Tracker<span>by Idhun</span></div>
+      </div>
+      <p class="footer__brand-text">A personalised calorie, macro, vitamin and hydration tracker. Free forever.</p>
+    </div>
+    <div class="footer__cols">
+      <div>
+        <div class="footer__col-title">App</div>
+        <ul class="footer__col-links">
+          <li><a href="#how-it-works">How it works</a></li>
+          <li><a href="#features">Features</a></li>
+          <li><a href="#science">The science</a></li>
+          <li><a href="#download">Download</a></li>
+        </ul>
+      </div>
+      <div>
+        <div class="footer__col-title">Nutrients</div>
+        <ul class="footer__col-links">
+          <li><a href="#features">Calories</a></li>
+          <li><a href="#features">Macros</a></li>
+          <li><a href="#features">Vitamins</a></li>
+          <li><a href="#features">Hydration</a></li>
+        </ul>
+      </div>
+      <div>
+        <div class="footer__col-title">Built with</div>
+        <ul class="footer__col-links">
+          <li><a href="https://reactnative.dev" target="_blank" rel="noopener">React Native</a></li>
+          <li><a href="https://expo.dev" target="_blank" rel="noopener">Expo</a></li>
+          <li><a href="#science">Mifflin-St Jeor</a></li>
+          <li><a href="#science">WHO / ICMR</a></li>
+        </ul>
+      </div>
+      <div>
+        <div class="footer__col-title">FAQ</div>
+        <ul class="footer__col-links">
+          <li><a href="#faq">Is it free?</a></li>
+          <li><a href="#faq">My data?</a></li>
+          <li><a href="#faq">Accuracy?</a></li>
+          <li><a href="#faq">Platforms?</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer__bottom">
+      <div>© 2025 AI Nutrition Tracker · Crafted by <a href="#">Idhun</a></div>
+      <div>Data never leaves your device · No account required</div>
+    </div>
+  </div>
+</footer>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     STICKY BOTTOM CTA (mobile only)
+══════════════════════════════════════════════════════════════════════════ -->
+<div class="sticky-cta" id="sticky-cta" aria-label="Download app">
+  <a href="#download" class="sticky-cta__android">🤖 Android</a>
+  <a href="#download" class="sticky-cta__ios">🍎 iOS</a>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     JAVASCRIPT
+══════════════════════════════════════════════════════════════════════════ -->
+<script>
+  // ── Nav scroll ───────────────────────────────────────────────────────────
+  const nav = document.getElementById('nav');
+  window.addEventListener('scroll', () => {
+    nav.classList.toggle('scrolled', window.scrollY > 50);
+  }, { passive: true });
+
+  // ── Hamburger menu ───────────────────────────────────────────────────────
+  const burger = document.getElementById('burger');
+  const menu   = document.getElementById('menu');
+  burger.addEventListener('click', () => {
+    const isOpen = burger.classList.toggle('open');
+    menu.classList.toggle('open', isOpen);
+    burger.setAttribute('aria-expanded', isOpen);
+    document.body.style.overflow = isOpen ? 'hidden' : '';
+  });
+  // Close on any menu link tap
+  document.querySelectorAll('.menu-link').forEach(link => {
+    link.addEventListener('click', () => {
+      burger.classList.remove('open');
+      menu.classList.remove('open');
+      burger.setAttribute('aria-expanded', 'false');
+      document.body.style.overflow = '';
+    });
+  });
+
+  // ── Calorie counter animation ────────────────────────────────────────────
+  function animateCount(el, target, duration) {
+    let start = null;
+    function step(ts) {
+      if (!start) start = ts;
+      const p = Math.min((ts - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - p, 3);
+      el.textContent = Math.round(eased * target).toLocaleString();
+      if (p < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+  const heroCal = document.getElementById('hero-cal');
+  if (heroCal) setTimeout(() => animateCount(heroCal, 1420, 1800), 600);
+
+  // ── Scroll fade-up ───────────────────────────────────────────────────────
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+  }, { threshold: 0.12 });
+  document.querySelectorAll('.fade-up').forEach(el => io.observe(el));
+
+  // ── Sticky bottom CTA — show after scrolling past hero ───────────────────
+  const stickyCta = document.getElementById('sticky-cta');
+  const heroEl    = document.querySelector('.hero');
+  if (stickyCta && heroEl) {
+    const showSticky = new IntersectionObserver(entries => {
+      // Show sticky when hero is out of view
+      stickyCta.classList.toggle('visible', !entries[0].isIntersecting);
+    }, { threshold: 0 });
+    showSticky.observe(heroEl);
+  }
+
+  // ── FAQ accordion ────────────────────────────────────────────────────────
+  document.querySelectorAll('.faq__q').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const item   = btn.parentElement;
+      const isOpen = item.classList.toggle('open');
+      btn.setAttribute('aria-expanded', isOpen);
+    });
+  });
+
+  // ── Smooth scroll for anchor links ───────────────────────────────────────
+  document.querySelectorAll('a[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (href === '#') return;
+      const target = document.querySelector(href);
+      if (target) {
+        e.preventDefault();
+        const offset = 70; // nav height
+        const top = target.getBoundingClientRect().top + window.scrollY - offset;
+        window.scrollTo({ top, behavior: 'smooth' });
+      }
+    });
+  });
+</script>
+</body>
+</html>
