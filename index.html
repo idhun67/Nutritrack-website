@@ -7,10 +7,10 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>AI Nutrition Tracker — by Idhun</title>
-  <meta name="description" content="Know exactly what your body needs. Personalised calorie, macro, vitamin and hydration targets — free, no ads, data stays on your device.">
+  <meta name="description" content="AI Nutrition Tracker calculates your personalised daily targets for calories, macros and vitamins, tracks 9 nutrients meal by meal, and recommends exactly what to eat next. Free. No ads. Data stays on your device.">
   <!-- Open Graph for WhatsApp / social sharing -->
   <meta property="og:title" content="AI Nutrition Tracker — by Idhun">
-  <meta property="og:description" content="Personalised calorie, macro, vitamin and hydration targets calculated from your unique profile.">
+  <meta property="og:description" content="Know exactly what your body needs — and exactly how to get there. Personalised calorie, macro, vitamin and hydration targets. Free. No ads. Built for real people.">
   <meta property="og:type" content="website">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -694,6 +694,88 @@
       .fade-up { opacity: 1; transform: none; transition: none; }
       @keyframes pulse { from, to { opacity:1; transform:scale(1); } }
     }
+    /* ═══════════════════════════════════════════════════════════════════════
+       ABOUT SECTION
+    ═══════════════════════════════════════════════════════════════════════ */
+    .about { background: var(--off-white); }
+    .about__inner {
+      display: flex; flex-direction: column; gap: 40px;
+    }
+    .about__copy { flex: 1; }
+    .about__para {
+      font-size: 16px; color: var(--gray-600);
+      line-height: 1.75; margin-bottom: 18px;
+    }
+    .about__para strong { color: var(--gray-900); font-weight: 600; }
+    .about__block {
+      background: var(--white); border-radius: var(--r-lg);
+      border-left: 4px solid var(--green);
+      padding: 20px 20px 20px 20px;
+      margin-top: 24px;
+    }
+    .about__block-title {
+      font-family: var(--font-display);
+      font-size: 16px; font-weight: 700;
+      color: var(--gray-900); margin-bottom: 10px;
+    }
+    .about__sidebar { display: flex; flex-direction: column; gap: 16px; }
+    .about__tracks-card {
+      background: var(--white); border-radius: var(--r-lg);
+      border: 1px solid var(--gray-200); padding: 24px 20px;
+    }
+    .about__tracks-title {
+      font-family: var(--font-display);
+      font-size: 14px; font-weight: 700;
+      color: var(--gray-900); margin-bottom: 16px;
+      text-transform: uppercase; letter-spacing: .04em;
+    }
+    .about__tracks-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 10px; margin-bottom: 16px;
+    }
+    .about__track-item {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 13px; font-weight: 500; color: var(--gray-700, #374140);
+      background: var(--off-white); border-radius: var(--r-sm);
+      padding: 8px 10px;
+    }
+    .abt-icon { font-size: 15px; flex-shrink: 0; }
+    .about__tracks-note {
+      font-size: 11px; font-weight: 700; letter-spacing: .06em;
+      text-transform: uppercase; color: var(--green);
+      text-align: center; padding-top: 12px;
+      border-top: 1px solid var(--gray-100);
+    }
+    .about__free-card {
+      background: linear-gradient(135deg, var(--green-dark), var(--green-deep));
+      border-radius: var(--r-lg); padding: 24px 20px;
+    }
+    .about__free-icon { font-size: 28px; margin-bottom: 10px; }
+    .about__free-title {
+      font-family: var(--font-display);
+      font-size: 20px; font-weight: 800;
+      color: var(--white); margin-bottom: 8px;
+    }
+    .about__free-text {
+      font-size: 14px; color: rgba(255,255,255,.65);
+      line-height: 1.65; margin-bottom: 16px;
+    }
+    .about__free-pills {
+      display: flex; flex-wrap: wrap; gap: 8px;
+    }
+    .about__pill {
+      background: rgba(255,255,255,.1);
+      border: 1px solid rgba(255,255,255,.15);
+      border-radius: var(--r-full);
+      padding: 5px 12px; font-size: 12px;
+      font-weight: 500; color: rgba(255,255,255,.8);
+    }
+    @media (min-width: 768px) {
+      .about__inner { flex-direction: row; gap: 64px; align-items: flex-start; }
+      .about__copy  { flex: 1.2; }
+      .about__sidebar { flex: 0.8; }
+    }
+
   </style>
 </head>
 <body>
@@ -716,6 +798,7 @@
       <!-- Desktop links -->
       <ul class="nav__links" role="list">
         <li><a href="#how-it-works">How it works</a></li>
+        <li><a href="#about">About</a></li>
         <li><a href="#features">Features</a></li>
         <li><a href="#science">Science</a></li>
         <li><a href="#faq">FAQ</a></li>
@@ -732,6 +815,7 @@
   <!-- Mobile drawer -->
   <div class="nav__menu" id="menu" role="dialog" aria-label="Mobile navigation">
     <a href="#how-it-works" class="menu-link">How it works</a>
+    <a href="#about"        class="menu-link">About</a>
     <a href="#features"     class="menu-link">Features</a>
     <a href="#science"      class="menu-link">Science</a>
     <a href="#faq"          class="menu-link">FAQ</a>
@@ -756,12 +840,12 @@
           Know exactly what<br>your body <em>needs.</em>
         </h1>
         <p class="hero__sub">
-          Personalised calorie, macro, vitamin and hydration targets —
-          calculated from your unique profile using the Mifflin-St Jeor
-          formula and WHO / ICMR guidelines.
+          Enter your profile once and get personalised daily targets for calories,
+          protein, carbs, fat, fiber and five essential vitamins — then track every
+          meal and get told exactly what to eat next.
         </p>
         <div class="hero__actions">
-          <a href="#download" class="btn btn--primary">📱 Download free</a>
+          <a href="app.html" class="btn btn--primary">🚀 Use the app free</a>
           <a href="#how-it-works" class="btn btn--outline">See how it works</a>
         </div>
         <div class="hero__trust">
@@ -848,6 +932,82 @@
           <h3 class="step-card__title">Log and track</h3>
           <p class="step-card__text">Search the food database or enter manually. After every meal the app tells you exactly what to eat next.</p>
         </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     ABOUT / DESCRIPTION
+══════════════════════════════════════════════════════════════════════════ -->
+<section class="about section" id="about" aria-label="About the app">
+  <div class="container">
+    <div class="about__inner">
+
+      <!-- Left: main description -->
+      <div class="about__copy">
+        <div class="section__eyebrow">What is it</div>
+        <h2 class="section__title">Your nutrition.<br>Finally personalised.</h2>
+
+        <p class="about__para">
+          Most people eat without knowing what their body actually needs.
+          <strong>AI Nutrition Tracker</strong> fixes that.
+        </p>
+        <p class="about__para">
+          Enter your profile once — age, weight, height, goal and lifestyle — and the app
+          instantly calculates your personalised daily targets for calories, protein, carbs,
+          fat, fiber and five essential vitamins using the clinically validated
+          Mifflin-St Jeor formula and WHO / ICMR dietary guidelines.
+          No generic charts. No guesswork. Just science-backed numbers built around you.
+        </p>
+
+        <div class="about__block">
+          <div class="about__block-title">Track every meal. Hit every target.</div>
+          <p class="about__para" style="margin-bottom:0">
+            Log what you eat by searching the built-in food database or entering meals
+            manually. After every meal, the app analyses what you've consumed and recommends
+            specific foods to fill the gaps — short on protein? It suggests grilled chicken.
+            Low on Vitamin C? An orange. Running behind on carbs? Brown rice.
+            Smart, specific, and instant.
+          </p>
+        </div>
+      </div>
+
+      <!-- Right: what it tracks + free badge -->
+      <div class="about__sidebar">
+
+        <div class="about__tracks-card">
+          <div class="about__tracks-title">What it tracks</div>
+          <div class="about__tracks-grid">
+            <div class="about__track-item"><span class="abt-icon">🔥</span>Calories</div>
+            <div class="about__track-item"><span class="abt-icon">💪</span>Protein</div>
+            <div class="about__track-item"><span class="abt-icon">🌾</span>Carbohydrates</div>
+            <div class="about__track-item"><span class="abt-icon">🥑</span>Fat</div>
+            <div class="about__track-item"><span class="abt-icon">🥦</span>Fiber</div>
+            <div class="about__track-item"><span class="abt-icon">🥕</span>Vitamin A</div>
+            <div class="about__track-item"><span class="abt-icon">⚡</span>Vitamin B1</div>
+            <div class="about__track-item"><span class="abt-icon">🍊</span>Vitamin C</div>
+            <div class="about__track-item"><span class="abt-icon">🌞</span>Vitamin D</div>
+            <div class="about__track-item"><span class="abt-icon">🥩</span>Vitamin B12</div>
+          </div>
+          <div class="about__tracks-note">9 nutrients tracked every single day</div>
+        </div>
+
+        <div class="about__free-card">
+          <div class="about__free-icon">🎉</div>
+          <div class="about__free-title">Free. Forever.</div>
+          <div class="about__free-text">
+            No subscription. No ads. No account required.
+            Built as a personal project — and it will stay completely free.
+          </div>
+          <div class="about__free-pills">
+            <span class="about__pill">✓ No subscription</span>
+            <span class="about__pill">✓ No ads</span>
+            <span class="about__pill">✓ No sign-in</span>
+            <span class="about__pill">✓ Data on device</span>
+          </div>
+        </div>
+
       </div>
     </div>
   </div>
@@ -1058,10 +1218,10 @@
 <section class="cta-section" id="download" aria-label="Download the app">
   <div class="container">
     <h2 class="cta-section__title">Start knowing what<br>your body needs.</h2>
-    <p class="cta-section__sub">Free. No subscription. No ads. Your data stays on your device — always.</p>
+    <p class="cta-section__sub">Free. No subscription. No ads. No account required. Your data stays on your device — always.</p>
     <div class="cta-section__actions">
-      <a href="#" class="btn btn--white">🤖 Android — Coming soon</a>
-      <a href="#" class="btn btn--outline-white">🍎 iOS — Coming soon</a>
+      <a href="app.html" class="btn btn--white">🚀 Use the app now — free</a>
+      <a href="#download" class="btn btn--outline-white">📱 Mobile app — coming soon</a>
     </div>
     <div class="cta-section__note">Built with React Native + Expo · Powered by Mifflin-St Jeor + WHO / ICMR guidelines</div>
   </div>
@@ -1077,7 +1237,7 @@
         <div class="nav__logo-icon">🧠</div>
         <div class="nav__logo-text">AI Nutrition Tracker<span>by Idhun</span></div>
       </div>
-      <p class="footer__brand-text">A personalised calorie, macro, vitamin and hydration tracker. Free forever.</p>
+      <p class="footer__brand-text">Personalised nutrition tracking built around your body, not a generic average. Tracks 9 nutrients daily. Free forever.</p>
     </div>
     <div class="footer__cols">
       <div>
@@ -1128,8 +1288,8 @@
      STICKY BOTTOM CTA (mobile only)
 ══════════════════════════════════════════════════════════════════════════ -->
 <div class="sticky-cta" id="sticky-cta" aria-label="Download app">
-  <a href="#download" class="sticky-cta__android">🤖 Android</a>
-  <a href="#download" class="sticky-cta__ios">🍎 iOS</a>
+  <a href="app.html" class="sticky-cta__android">🚀 Use the app</a>
+  <a href="#download" class="sticky-cta__ios">📱 Mobile coming soon</a>
 </div>
 
 <!-- ══════════════════════════════════════════════════════════════════════════
