@@ -748,19 +748,135 @@ function scaleF(food,val){
     vA:rf(food.vA*r),vB:rf(food.vB*r,2),vC:rf(food.vC*r),vD:rf(food.vD*r,2),vB12:rf(food.vB12*r,2)};
 }
 function allowed(food){ return true; }
+// ── SMART TIME-AWARE RECOMMENDATIONS ────────────────────────────────────────
+// Analyses current time of day + all 9 nutrient deficits to recommend
+// specific foods classified by meal type (breakfast / lunch / dinner / snacks)
+function getTimeSlot(){
+  const h=new Date().getHours();
+  if(h>=5&&h<11) return'breakfast';
+  if(h>=11&&h<15)return'lunch';
+  if(h>=15&&h<18)return'snacks';
+  if(h>=18&&h<23)return'dinner';
+  return'snacks'; // late night
+}
+function getTimeLabel(){
+  const h=new Date().getHours();
+  if(h>=5&&h<11) return'🌅 Breakfast time';
+  if(h>=11&&h<15)return'☀️ Lunch time';
+  if(h>=15&&h<18)return'🍎 Snack time';
+  if(h>=18&&h<23)return'🌙 Dinner time';
+  return'🌙 Late night';
+}
+
 function getRecos(tot){
-  const pD=Math.max(0,tgt.pro-Math.round(tot.p));
-  const cD=Math.max(0,tgt.crb-Math.round(tot.c));
-  const fD=Math.max(0,tgt.fat-Math.round(tot.f));
-  const d=prof.diet||'veg';const r=[];
-  if(pD>20){if(d==='nonveg')r.push({f:'Grilled chicken 100g',t:'High protein',cal:165});else if(d==='egg')r.push({f:'2 boiled eggs',t:'High protein',cal:156});else r.push({f:'Soya chunks 50g',t:'Plant protein',cal:173});}
-  if(pD>10&&d!=='vegan')r.push({f:'Greek yoghurt 100g',t:'Protein + probiotics',cal:59});
-  if(cD>30)r.push({f:'Brown rice 100g',t:'Complex carbs',cal:111});
-  if(fD>8)r.push({f:'Almonds 30g',t:'Healthy fats',cal:174});
-  if(tot.vC<tgt.vC*.5)r.push({f:'Orange 100g',t:'Vitamin C boost',cal:47});
-  if(tot.vD<tgt.vD*.5)r.push(d==='nonveg'?{f:'Salmon 100g',t:'Vitamin D+B12',cal:208}:{f:'Mushroom 100g',t:'Vitamin D',cal:22});
-  if(!r.length)r.push({f:'Oats 40g',t:'Balanced option',cal:156});
-  return r.slice(0,3);
+  const d=prof.diet||'veg';
+  const slot=getTimeSlot();
+  const rem=tgt.cal-Math.round(tot.cal);
+  if(rem<=0)return[];
+
+  // Calculate deficits for all 9 nutrients
+  const def={
+    cal:  rem,
+    pro:  Math.max(0,tgt.pro  - Math.round(tot.p)),
+    carb: Math.max(0,tgt.crb  - Math.round(tot.c)),
+    fat:  Math.max(0,tgt.fat  - Math.round(tot.f)),
+    fib:  Math.max(0,tgt.fib  - rf(tot.fb,1)),
+    vA:   Math.max(0,tgt.vA   - rf(tot.vA,0)),
+    vB:   Math.max(0,tgt.vB   - rf(tot.vB,2)),
+    vC:   Math.max(0,tgt.vC   - rf(tot.vC,0)),
+    vD:   Math.max(0,tgt.vD   - rf(tot.vD,1)),
+    vB12: Math.max(0,tgt.vB12 - rf(tot.vB12,1)),
+  };
+
+  // Food suggestion bank — each entry has: food name, reason tag, nutrients it addresses,
+  // calorie estimate, diet type, and which meal slots it suits
+  const BANK=[
+    // BREAKFAST ITEMS
+    {f:'Oats with milk (40g + 200ml)',   t:'Carbs + fiber + Vit B1', cal:250, d:['veg','egg','vegan'],     slots:['breakfast'],         fixes:['carb','fib','vB']},
+    {f:'Idli + sambar (3 pcs)',           t:'Carbs + protein + Vit C',cal:220, d:['veg','egg','vegan'],     slots:['breakfast','snacks'], fixes:['carb','pro','vC']},
+    {f:'Poha (150g)',                     t:'Carbs + fiber',           cal:195, d:['veg','egg','vegan'],     slots:['breakfast','snacks'], fixes:['carb','fib']},
+    {f:'Boiled eggs (2)',                 t:'Protein + Vit D + B12',   cal:156, d:['egg','nonveg'],          slots:['breakfast','snacks'], fixes:['pro','vD','vB12']},
+    {f:'Scrambled eggs (2)',              t:'Protein + Vit A + D',     cal:182, d:['egg','nonveg'],          slots:['breakfast'],          fixes:['pro','vA','vD']},
+    {f:'Whole wheat bread + peanut butter',t:'Carbs + healthy fat',   cal:250, d:['veg','egg','vegan'],     slots:['breakfast','snacks'], fixes:['carb','fat']},
+    {f:'Banana + milk (250ml)',           t:'Carbs + calcium + Vit D', cal:210, d:['veg','egg'],             slots:['breakfast','snacks'], fixes:['carb','vD','vB']},
+    {f:'Moong dal chilla (2 pcs)',        t:'Protein + fiber',         cal:180, d:['veg','egg','vegan'],     slots:['breakfast'],          fixes:['pro','fib']},
+    {f:'Upma with vegetables',            t:'Carbs + Vit A + fiber',   cal:200, d:['veg','egg','vegan'],     slots:['breakfast'],          fixes:['carb','vA','fib']},
+    // LUNCH ITEMS
+    {f:'Dal + brown rice (150g each)',    t:'Protein + carbs + fiber', cal:350, d:['veg','egg','vegan'],     slots:['lunch'],              fixes:['pro','carb','fib']},
+    {f:'Rajma chawal',                    t:'Protein + carbs + iron',  cal:380, d:['veg','egg','vegan'],     slots:['lunch'],              fixes:['pro','carb','fib']},
+    {f:'Chole with roti (2)',             t:'Protein + carbs + fiber', cal:420, d:['veg','egg','vegan'],     slots:['lunch'],              fixes:['pro','carb','fib']},
+    {f:'Chicken biryani (200g)',          t:'Protein + carbs + Vit B12',cal:400,d:['nonveg'],               slots:['lunch','dinner'],     fixes:['pro','carb','vB12']},
+    {f:'Fish curry + rice',              t:'Protein + Vit D + B12',   cal:380, d:['nonveg'],               slots:['lunch','dinner'],     fixes:['pro','vD','vB12']},
+    {f:'Palak paneer + roti (2)',        t:'Protein + Vit A + iron',  cal:400, d:['veg','egg'],             slots:['lunch','dinner'],     fixes:['pro','vA','vC']},
+    {f:'Mutton curry + rice',            t:'Protein + iron + Vit B12',cal:440, d:['nonveg'],               slots:['lunch','dinner'],     fixes:['pro','vB12','fat']},
+    {f:'Soya chunks + rice',             t:'Plant protein + carbs',   cal:360, d:['veg','egg','vegan'],     slots:['lunch'],              fixes:['pro','carb']},
+    // SNACK ITEMS
+    {f:'Orange (2 medium)',              t:'Vitamin C boost',          cal:94,  d:['veg','egg','vegan','nonveg'],slots:['snacks'],        fixes:['vC']},
+    {f:'Almonds (30g)',                  t:'Healthy fat + Vit E + B1', cal:174, d:['veg','egg','vegan','nonveg'],slots:['snacks'],        fixes:['fat','vB']},
+    {f:'Greek yoghurt (150g)',           t:'Protein + probiotics',     cal:89,  d:['veg','egg'],             slots:['snacks','breakfast'],fixes:['pro','vD','vB12']},
+    {f:'Mixed fruit bowl',               t:'Vitamins A C + fiber',     cal:120, d:['veg','egg','vegan','nonveg'],slots:['snacks'],        fixes:['vA','vC','fib']},
+    {f:'Sweet potato (150g)',            t:'Vitamin A + fiber + carbs',cal:129, d:['veg','egg','vegan','nonveg'],slots:['snacks'],        fixes:['vA','fib','carb']},
+    {f:'Sprouts + lemon salad',          t:'Protein + Vit C + fiber',  cal:80,  d:['veg','egg','vegan'],     slots:['snacks'],            fixes:['pro','vC','fib']},
+    {f:'Peanut butter + banana',         t:'Protein + healthy fat',    cal:280, d:['veg','egg','vegan'],     slots:['snacks'],            fixes:['pro','fat','carb']},
+    {f:'Egg bhurji (2 eggs)',            t:'Protein + Vit A + D',      cal:195, d:['egg','nonveg'],          slots:['snacks','breakfast'],fixes:['pro','vA','vD']},
+    {f:'Dhokla (3 pieces)',              t:'Protein + light carbs',    cal:240, d:['veg','egg','vegan'],     slots:['snacks'],            fixes:['pro','carb']},
+    {f:'Watermelon (300g)',              t:'Hydration + Vit A + C',    cal:90,  d:['veg','egg','vegan','nonveg'],slots:['snacks'],        fixes:['vA','vC']},
+    // DINNER ITEMS
+    {f:'Dal soup + roti (2)',            t:'Protein + carbs + fiber',  cal:330, d:['veg','egg','vegan'],     slots:['dinner'],            fixes:['pro','carb','fib']},
+    {f:'Grilled chicken + salad',        t:'Protein + Vit A + C',      cal:290, d:['nonveg'],               slots:['dinner'],            fixes:['pro','vA','vC']},
+    {f:'Paneer tikka + roti',            t:'Protein + calcium',        cal:380, d:['veg','egg'],             slots:['dinner'],            fixes:['pro','fat','vD']},
+    {f:'Prawn masala + rice',            t:'Protein + Vit B12 + D',    cal:340, d:['nonveg'],               slots:['dinner'],            fixes:['pro','vB12','vD']},
+    {f:'Vegetable khichdi',              t:'Carbs + protein + Vit A',  cal:280, d:['veg','egg','vegan'],     slots:['dinner'],            fixes:['carb','pro','vA']},
+    {f:'Tofu stir-fry + rice',           t:'Plant protein + Vit C',    cal:310, d:['veg','egg','vegan'],     slots:['dinner'],            fixes:['pro','carb','vC']},
+    {f:'Salmon (150g) + vegetables',     t:'Protein + Vit D + B12',    cal:330, d:['nonveg'],               slots:['dinner'],            fixes:['pro','vD','vB12']},
+    {f:'Spinach dal + roti',             t:'Iron + Vit A + protein',   cal:320, d:['veg','egg','vegan'],     slots:['dinner'],            fixes:['pro','vA','fib']},
+    // VITAMIN SPECIFIC
+    {f:'Carrot + beetroot juice',        t:'Vitamin A (900mcg)',        cal:80,  d:['veg','egg','vegan','nonveg'],slots:['breakfast','snacks'],fixes:['vA']},
+    {f:'Mushroom sauté (100g)',          t:'Vitamin D source',          cal:40,  d:['veg','egg','vegan'],     slots:['lunch','dinner','snacks'],fixes:['vD']},
+    {f:'Guava (2 medium)',               t:'Vitamin C (456mg!)',        cal:136, d:['veg','egg','vegan','nonveg'],slots:['snacks'],        fixes:['vC']},
+    {f:'Amla juice / gooseberry',        t:'Vitamin C (600mg)',         cal:44,  d:['veg','egg','vegan','nonveg'],slots:['breakfast','snacks'],fixes:['vC']},
+    {f:'Curd + flaxseed (1 tbsp)',       t:'Fiber + Vit B12 + B1',     cal:95,  d:['veg','egg'],             slots:['breakfast','snacks'],fixes:['fib','vB12','vB']},
+  ];
+
+  // Find the most deficient nutrients (top 3)
+  const defRanked=Object.entries(def)
+    .filter(([k,v])=>k!=='cal'&&v>0)
+    .sort((a,b)=>{ // weight by % deficit
+      const pctA=a[1]/(tgt[a[0]]||1);
+      const pctB=b[1]/(tgt[b[0]]||1);
+      return pctB-pctA;
+    })
+    .map(([k])=>k);
+
+  const top3=defRanked.slice(0,3);
+
+  // Score each food: +3 for matching current meal slot, +2 per matching deficit nutrient,
+  // diet compatibility required
+  const scored=BANK
+    .filter(item=>item.d.includes(d))
+    .map(item=>{
+      let sc=0;
+      if(item.slots.includes(slot)) sc+=3;
+      top3.forEach((nut,rank)=>{
+        if(item.fixes.includes(nut)) sc+=(3-rank); // higher score for top deficits
+      });
+      return{item,sc};
+    })
+    .filter(x=>x.sc>0)
+    .sort((a,b)=>b.sc-a.sc);
+
+  // Return top 4 unique recommendations
+  const seen=new Set();
+  return scored
+    .filter(x=>{ if(seen.has(x.item.f))return false;seen.add(x.item.f);return true; })
+    .slice(0,4)
+    .map(x=>({
+      f:x.item.f,
+      t:x.item.t,
+      cal:x.item.cal,
+      slot:x.item.slots[0],
+      fixes:x.item.fixes
+    }));
 }
 
 // ── ONBOARDING ──
@@ -814,8 +930,34 @@ function renderHome(){
   document.getElementById('cups').innerHTML=Array.from({length:cups},(_,i)=>`<button class="cup ${i<fc?'fl':''}" onclick="tCup(${i})">💧</button>`).join('');
   const rem=tgt.cal-Math.round(tot.cal);
   if(rem<=0){document.getElementById('rsec').innerHTML='<div class="card" style="border-color:#fca5a5"><div class="rhd" style="color:var(--rd)">🎉 Calorie target reached!</div><p style="font-size:13px;color:var(--c6)">You\'ve hit your daily goal. Stick to water and herbal teas.</p></div>';return;}
-  const recos=getRecos(tot);const pD=Math.max(0,tgt.pro-Math.round(tot.p));const cD=Math.max(0,tgt.crb-Math.round(tot.c));const fD=Math.max(0,tgt.fat-Math.round(tot.f));
-  document.getElementById('rsec').innerHTML=`<div class="card"><div class="rhd">💡 What to eat next</div>${recos.map(r=>`<div class="rit"><span class="rf">${r.f}</span><span class="rt">${r.t}</span></div>`).join('')}<div class="rn"><strong>${rem}</strong> kcal remaining. Need: Protein <strong>${pD}g</strong>, Carbs <strong>${cD}g</strong>, Fat <strong>${fD}g</strong>.</div></div>`;
+  const recos=getRecos(tot);
+  const pD=Math.max(0,tgt.pro-Math.round(tot.p));
+  const cD=Math.max(0,tgt.crb-Math.round(tot.c));
+  const fD=Math.max(0,tgt.fat-Math.round(tot.f));
+  const vAD=Math.max(0,tgt.vA-rf(tot.vA,0));
+  const vCD=Math.max(0,tgt.vC-rf(tot.vC,0));
+  const vDD=Math.max(0,tgt.vD-rf(tot.vD,1));
+  const vB12D=Math.max(0,tgt.vB12-rf(tot.vB12,1));
+  const timeLabel=getTimeLabel();
+  const slotColors={breakfast:'#EF9F27',lunch:'#1D9E75',dinner:'#7F77DD',snacks:'#D4537E'};
+  const slotEmoji={breakfast:'🌅',lunch:'☀️',dinner:'🌙',snacks:'🍎'};
+  document.getElementById('rsec').innerHTML=`
+    <div class="card">
+      <div class="rhd">💡 What to eat next <span style="font-size:11px;font-weight:500;color:var(--c4);margin-left:4px">${timeLabel}</span></div>
+      ${recos.map(r=>`
+        <div class="rit" style="align-items:flex-start;padding:8px 0">
+          <div style="flex:1">
+            <div class="rf">${r.f}</div>
+            <div style="font-size:11px;color:var(--c4);margin-top:2px">${r.t} · ~${r.cal} kcal</div>
+          </div>
+          <span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:var(--rfl);background:${slotColors[r.slot]||'var(--g)'}20;color:${slotColors[r.slot]||'var(--g)'}; margin-left:8px;white-space:nowrap;flex-shrink:0">${slotEmoji[r.slot]||''} ${ML[r.slot]||r.slot}</span>
+        </div>`).join('')}
+      <div class="rn" style="margin-top:8px">
+        <strong>${rem}</strong> kcal remaining today.
+        Needs: Protein <strong>${pD}g</strong> · Carbs <strong>${cD}g</strong> · Fat <strong>${fD}g</strong>
+        ${vAD>0?` · Vit A <strong>${vAD}mcg</strong>`:''}${vCD>0?` · Vit C <strong>${vCD}mg</strong>`:''}${vDD>0?` · Vit D <strong>${vDD}mcg</strong>`:''}${vB12D>0?` · B12 <strong>${vB12D}mcg</strong>`:''}
+      </div>
+    </div>`;
 }
 
 // ── LOG ──
@@ -831,6 +973,8 @@ function openLog(mealKey){
   ['mn','mc','mp','mca','mf2','mfb','mq'].forEach(id=>document.getElementById(id).value='');
   flt='all';document.querySelectorAll('.ff').forEach(b=>b.classList.remove('active'));document.querySelector('.ff').classList.add('active');
   const k=getKey();if(k)document.getElementById('gk').value=k;
+  // Hide any leftover banner from previous session
+  const b=document.getElementById('logged-banner');if(b)b.style.display='none';
   ssc('log');
 }
 function closeLog(){ssc('home');renderHome();}
@@ -898,14 +1042,39 @@ function confAdd(){
   meals[curM].push({name:selF.n+'('+(selF.pcs&&qM==='pcs'?val+'pcs':g+'g')+')',
     cal:Math.round(selF.cal*r),p:rf(selF.p*r),c:rf(selF.cb*r),f:rf(selF.f*r),fb:rf(selF.fb*r),
     vA:rf(selF.vA*r),vB:rf(selF.vB*r,2),vC:rf(selF.vC*r),vD:rf(selF.vD*r,2),vB12:rf(selF.vB12*r,2)});
-  selF=null;document.getElementById('qpk').style.display='none';
-  save();toast('Added to '+ML[curM]);closeLog();
+  selF=null;
+  document.getElementById('qpk').style.display='none';
+  document.getElementById('fsi').value='';
+  document.getElementById('sres').innerHTML='';
+  save();
+  // Show inline confirmation — stay on log screen so user can add more items
+  showLoggedBanner(ML[curM]);
 }
 function addMan(){
   const nm=document.getElementById('mn').value.trim();const cal=parseFloat(document.getElementById('mc').value)||0;
   if(!nm||!cal){toast('Enter food name and calories');return;}
   meals[curM].push({name:nm,cal,p:parseFloat(document.getElementById('mp').value)||0,c:parseFloat(document.getElementById('mca').value)||0,f:parseFloat(document.getElementById('mf2').value)||0,fb:parseFloat(document.getElementById('mfb').value)||0,vA:0,vB:0,vC:0,vD:0,vB12:0});
-  save();toast('Added to '+ML[curM]);closeLog();
+  // Clear manual fields but stay on screen
+  ['mn','mc','mp','mca','mf2','mfb','mq'].forEach(id=>document.getElementById(id).value='');
+  save();
+  showLoggedBanner(ML[curM]);
+}
+
+// Show a non-intrusive green banner in the log screen confirming the item was added
+// without redirecting the user — they can keep adding more items
+function showLoggedBanner(mealLabel){
+  const count=meals[curM].length;
+  let banner=document.getElementById('logged-banner');
+  if(!banner){
+    banner=document.createElement('div');
+    banner.id='logged-banner';
+    banner.style.cssText='background:var(--g);color:#fff;padding:10px 16px;border-radius:var(--rsm);margin-bottom:14px;font-size:13px;font-weight:600;display:flex;justify-content:space-between;align-items:center;';
+    // Insert after the meal badge
+    const lb=document.getElementById('lb');
+    lb.parentNode.insertBefore(banner,lb.nextSibling);
+  }
+  banner.innerHTML=`<span>✅ ${count} item${count>1?'s':''} added to ${mealLabel}</span><button onclick="closeLog()" style="background:rgba(255,255,255,.2);border:none;color:#fff;padding:5px 12px;border-radius:var(--rsm);font-size:12px;font-weight:700;cursor:pointer;font-family:var(--fb);">Done ✓</button>`;
+  banner.style.display='flex';
 }
 
 // ── WATER ──
@@ -1031,7 +1200,11 @@ function addAI(){
     cal:Math.round(f.cal||0),p:rf(f.protein||0),c:rf(f.carbs||0),
     f:rf(f.fat||0),fb:rf(f.fiber||0),vA:0,vB:0,vC:0,vD:0,vB12:0
   }));
-  save();toast('Added '+aiIt.length+' item(s) to '+ML[curM]);aiIt=[];closeLog();
+  save();
+  aiIt=[];
+  document.getElementById('ars').style.display='none';
+  document.getElementById('ppw').style.display='none';
+  showLoggedBanner(ML[curM]);
 }
 
 // ── VITAMINS ──
