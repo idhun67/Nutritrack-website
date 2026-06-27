@@ -174,7 +174,7 @@
     ═══════════════════════════════════════════════════════════════════════ */
     .hero {
       background: linear-gradient(150deg, var(--green-deep) 0%, var(--green-dark) 60%, #0d6b50 100%);
-      padding: 120px 0 72px;
+      padding: 60px 0 72px;
       position: relative; overflow: hidden;
       text-align: center;
     }
@@ -652,7 +652,7 @@
       .nav__menu    { display: none !important; }
 
       /* Hero */
-      .hero { text-align: left; padding: 160px 0 100px; }
+      .hero { text-align: left; padding: 72px 0 100px; }
       .hero__inner { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center; }
       .hero__sub   { margin-left: 0; margin-right: 0; }
       .hero__actions { flex-direction: row; }
@@ -802,7 +802,7 @@
         <li><a href="#features">Features</a></li>
         <li><a href="#science">Science</a></li>
         <li><a href="#faq">FAQ</a></li>
-        <li><a href="#download" class="nav__cta">Get the app</a></li>
+        <li><a href="app.html" class="nav__cta" onclick="window.location.href='app.html';return false;">Get the app</a></li>
       </ul>
 
       <!-- Hamburger (mobile) -->
@@ -819,9 +819,22 @@
     <a href="#features"     class="menu-link">Features</a>
     <a href="#science"      class="menu-link">Science</a>
     <a href="#faq"          class="menu-link">FAQ</a>
-    <a href="#download"     class="nav__menu-cta menu-link">Get the app</a>
+    <a href="app.html" class="nav__menu-cta menu-link" onclick="window.location.href='app.html';return false;">Get the app</a>
   </div>
 </nav>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     APP LAUNCH BANNER — always visible, impossible to miss
+══════════════════════════════════════════════════════════════════════════ -->
+<div style="background:var(--green);padding:12px 20px;text-align:center;margin-top:62px;">
+  <a href="app.html"
+     onclick="window.location.href='app.html';return false;"
+     style="display:inline-flex;align-items:center;gap:10px;background:white;color:#0F6E56;font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:15px;padding:11px 28px;border-radius:8px;text-decoration:none;">
+    🧠 Open AI Nutrition Tracker
+    <span style="font-size:18px;">→</span>
+  </a>
+  <div style="margin-top:8px;font-size:12px;color:rgba(255,255,255,.8);">Free · No account needed · Works in your browser</div>
+</div>
 
 <!-- ══════════════════════════════════════════════════════════════════════════
      HERO
@@ -845,7 +858,7 @@
           meal and get told exactly what to eat next.
         </p>
         <div class="hero__actions">
-          <a href="app.html" class="btn btn--primary">🚀 Use the app free</a>
+          <a href="app.html" class="btn btn--primary" onclick="window.location.href='app.html';return false;">🚀 Use the app free</a>
           <a href="#how-it-works" class="btn btn--outline">See how it works</a>
         </div>
         <div class="hero__trust">
@@ -1220,7 +1233,7 @@
     <h2 class="cta-section__title">Start knowing what<br>your body needs.</h2>
     <p class="cta-section__sub">Free. No subscription. No ads. No account required. Your data stays on your device — always.</p>
     <div class="cta-section__actions">
-      <a href="app.html" class="btn btn--white">🚀 Use the app now — free</a>
+      <a href="app.html" class="btn btn--white" onclick="window.location.href='app.html';return false;">🚀 Use the app now — free</a>
       <a href="#download" class="btn btn--outline-white">📱 Mobile app — coming soon</a>
     </div>
     <div class="cta-section__note">Built with React Native + Expo · Powered by Mifflin-St Jeor + WHO / ICMR guidelines</div>
@@ -1288,7 +1301,7 @@
      STICKY BOTTOM CTA (mobile only)
 ══════════════════════════════════════════════════════════════════════════ -->
 <div class="sticky-cta" id="sticky-cta" aria-label="Download app">
-  <a href="app.html" class="sticky-cta__android">🚀 Use the app</a>
+  <a href="app.html" class="sticky-cta__android" onclick="window.location.href='app.html';return false;">🚀 Use the app</a>
   <a href="#download" class="sticky-cta__ios">📱 Mobile coming soon</a>
 </div>
 
