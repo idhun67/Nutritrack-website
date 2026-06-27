@@ -205,7 +205,7 @@
   <p class="sp-desc">Personalised calorie, macro and vitamin targets. Instant AI photo detection. 500+ offline foods covering Indian cuisine, fruits, vegetables and world dishes.</p>
   <div class="sp-pills">
     <div class="sp-pill">✓ 500+ offline foods</div>
-    <div class="sp-pill">✓ Fast AI photo scan</div>
+    <div class="sp-pill">✓ LogMeal AI photo scan</div>
     <div class="sp-pill">✓ Veg / Non-veg filter</div>
     <div class="sp-pill">✓ Free forever</div>
   </div>
@@ -315,13 +315,13 @@
   <div class="tb"><button class="tbb" onclick="closeLog()">← Back</button><div class="tbt" id="lt">Log meal <span>AI scan · search · manual</span></div></div>
   <div class="lsc">
     <div class="lbdg" id="lb">🍳 Breakfast</div>
-    <!-- GEMINI 2.0 FLASH LITE PHOTO SCAN -->
+    <!-- LOGMEAL AI PHOTO SCAN -->
     <div class="psec">
-      <div class="pt">📸 AI Photo Detection <span style="font-size:10px;background:rgba(255,255,255,.15);padding:2px 7px;border-radius:var(--rfl);margin-left:6px">Gemini 2.0 Flash Lite</span></div>
-      <div class="ps">Snap your meal — fast AI detects food items and adds nutrition automatically.</div>
-      <div class="akin">Free Gemini API key needed. Get one at <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com</a> — no credit card.</div>
+      <div class="pt">📸 AI Photo Detection <span style="font-size:10px;background:rgba(255,255,255,.15);padding:2px 7px;border-radius:var(--rfl);margin-left:6px">LogMeal AI</span></div>
+      <div class="ps">Snap your meal — LogMeal AI detects food items and adds nutrition data automatically. Recognises 1300+ dishes.</div>
+      <div class="akin">Free LogMeal API key needed. Sign up at <a href="https://logmeal.com/api/" target="_blank">logmeal.com/api</a> — free tier includes 200 scans/month. No credit card needed.</div>
       <div class="akr">
-        <input type="password" class="aki" id="gk" placeholder="Paste Gemini API key">
+        <input type="password" class="aki" id="gk" placeholder="Paste LogMeal API token">
         <button class="aks" onclick="saveKey()">Save</button>
       </div>
       <div class="pbr">
@@ -338,7 +338,7 @@
     <div class="ffr" id="ffr">
       <button class="ff active" onclick="setFF('all',this)">All</button>
       <button class="ff" onclick="setFF('veg',this)">🟢 Veg</button>
-      <button class="ff" onclick="setFF('egg',this)">🟡 Egg</button>
+      <button class="ff" onclick="setFF('egg',this)">🥚 Eggs</button>
       <button class="ff" onclick="setFF('nonveg',this)">🔴 Non-veg</button>
     </div>
     <div id="sres"></div>
@@ -851,26 +851,31 @@ function onSrch(){
   document.getElementById('qpk').style.display='none';selF=null;
   if(q.length<2){document.getElementById('sres').innerHTML='';return;}
   let pool=FDB.filter(f=>allowed(f));
-  if(flt!=='all')pool=pool.filter(f=>f.d===flt);
-  // score: name match scores higher than category match
+  // Filter: 'egg' filter shows Eggs category items specifically
+  if(flt==='egg') pool=pool.filter(f=>f.c==='Eggs');
+  else if(flt==='veg') pool=pool.filter(f=>f.d==='veg');
+  else if(flt==='nonveg') pool=pool.filter(f=>f.d==='nonveg');
+  // Score results by relevance
   const scored=pool.map(f=>{
-    const n=f.n.toLowerCase();
-    let sc=0;
-    if(n===q)sc=100;
-    else if(n.startsWith(q))sc=80;
+    const n=f.n.toLowerCase();let sc=0;
+    if(n===q)sc=100;else if(n.startsWith(q))sc=80;
     else if(n.includes(q))sc=60;
     else if(f.c.toLowerCase().includes(q))sc=20;
     return{f,sc};
   }).filter(x=>x.sc>0).sort((a,b)=>b.sc-a.sc);
   srl=scored.map(x=>x.f).slice(0,12);
-  if(!srl.length){document.getElementById('sres').innerHTML='<div style="font-size:13px;color:var(--c4);padding:8px 0">No matches found. Use manual entry below.</div>';return;}
+  if(!srl.length){document.getElementById('sres').innerHTML='<div style="font-size:13px;color:var(--c4);padding:8px 0">No matches. Use manual entry below.</div>';return;}
   document.getElementById('sres').innerHTML=srl.map((f,i)=>`<div class="fo" onclick="selFd(${i})"><div><div class="fon">${f.n}</div><div class="fom">${ddot(f.d)} ${f.c} · ${f.cal} kcal${f.pcs?'/pc':'/100g'}</div></div><div class="foc">${f.cal}<br><span style="font-size:10px;font-weight:400;color:var(--c4)">${f.pcs?'kcal/pc':'kcal'}</span></div></div>`).join('');
 }
 function selFd(i){
   selF=srl[i];qM='g';
   document.getElementById('qfn').textContent=selF.n;
   document.getElementById('qfb').textContent=`Per 100g: ${selF.cal} kcal  P:${selF.p}g  C:${selF.cb}g  F:${selF.f}g`;
-  if(selF.pcs){
+  // Auto-switch to piece mode for eggs and any food with pcs:true
+  const isPcs=selF.pcs||selF.c==='Eggs';
+  if(isPcs){
+    // Set pcs:true on the food object if not already set (for egg items that might lack it)
+    if(!selF.pcs){selF=Object.assign({},selF,{pcs:true,gpp:selF.gpp||50});}
     document.getElementById('qmr').style.display='flex';
     document.getElementById('qmg').classList.remove('active');document.getElementById('qmp').classList.add('active');
     setQM('pcs',document.getElementById('qmp'));
@@ -914,67 +919,125 @@ function addMan(){
 function tCup(i){const wg=tgt.wat||2500;const fc=Math.round((wml||0)/250);wml=i<fc?Math.max(0,i*250):Math.min(wg,(i+1)*250);save();renderHome();}
 function addW(){const v=parseInt(document.getElementById('wi').value)||250;wml=Math.min((tgt.wat||2500)+500,(wml||0)+v);document.getElementById('wi').value='';save();renderHome();toast('Added '+v+'ml');}
 
-// ── GEMINI 2.0 FLASH LITE — IMAGE COMPRESSED BEFORE SENDING ──
+// ── LOGMEAL AI FOOD DETECTION ──────────────────────────────────────────────
+// LogMeal API: https://api.logmeal.es/v2
+// Endpoint: POST /image/segmentation/complete  → recognises dishes + returns nutritional info
+// Auth: Bearer token in Authorization header
+// Free tier: 200 scans/month — sign up at logmeal.com/api
 function tCam(){const inp=document.getElementById('pi');inp.setAttribute('capture','environment');inp.click();}
 function tGal(){const inp=document.getElementById('pi');inp.removeAttribute('capture');inp.click();}
+
 function handlePhoto(ev){
   const file=ev.target.files[0];if(!file)return;
   const reader=new FileReader();
   reader.onload=e=>{
-    // Compress image to max 512px before sending — dramatically reduces payload and latency
-    const img=new Image();
-    img.onload=()=>{
-      const maxSz=512;
-      let w=img.width,h=img.height;
-      if(w>h){if(w>maxSz){h=Math.round(h*maxSz/w);w=maxSz;}}else{if(h>maxSz){w=Math.round(w*maxSz/h);h=maxSz;}}
-      const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
-      canvas.getContext('2d').drawImage(img,0,0,w,h);
-      const compressed=canvas.toDataURL('image/jpeg',0.75);
-      document.getElementById('ppv').src=compressed;
-      document.getElementById('ppw').style.display='block';
-      scanWithGemini(compressed);
-    };
-    img.src=e.target.result;
+    document.getElementById('ppv').src=e.target.result;
+    document.getElementById('ppw').style.display='block';
+    scanWithLogMeal(file);
   };
   reader.readAsDataURL(file);ev.target.value='';
 }
-async function scanWithGemini(dataUrl){
-  const key=getKey();if(!key){toast('Enter your Gemini API key first');return;}
+
+async function scanWithLogMeal(file){
+  const key=getKey();
+  if(!key){toast('Enter your LogMeal API token first');return;}
   const as=document.getElementById('ast');const ar=document.getElementById('ars');
   as.style.display='block';ar.style.display='none';
-  as.innerHTML='<div class="scan"><div class="spin"></div>Scanning with Gemini 2.0 Flash Lite…</div>';
+  as.innerHTML='<div class="scan"><div class="spin"></div>LogMeal AI is scanning your meal…</div>';
+
   try{
-    const b64=dataUrl.split(',')[1];
-    const dc=prof.diet==='veg'?'User is vegetarian.':prof.diet==='egg'?'User is eggetarian (veg+eggs).':prof.diet==='vegan'?'User is vegan.':'User eats all food.';
-    const resp=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${key}`,{
+    // Step 1: Upload image for food recognition (segmentation/complete)
+    const formData=new FormData();
+    formData.append('image',file);
+
+    const recResp=await fetch('https://api.logmeal.es/v2/image/segmentation/complete',{
       method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        generationConfig:{temperature:0.1,maxOutputTokens:512},
-        contents:[{parts:[
-          {inline_data:{mime_type:'image/jpeg',data:b64}},
-          {text:`Identify food items in this photo. ${dc} Estimate portions. Reply ONLY with JSON array, no markdown:\n[{"name":"Dal rice","grams":200,"cal":280,"protein":10,"carbs":50,"fat":4,"fiber":6}]\nIf no food visible return [].`}
-        ]}]
-      })
+      headers:{'Authorization':'Bearer '+key},
+      body:formData
     });
-    const data=await resp.json();
-    if(data.error){throw new Error(data.error.message||'API error');}
-    const txt=((data.candidates||[])[0]?.content?.parts||[]).map(p=>p.text||'').join('');
-    let foods=[];
-    try{foods=JSON.parse(txt.replace(/```json|```/g,'').trim());}catch(e){foods=[];}
+
+    if(!recResp.ok){
+      const errTxt=await recResp.text();
+      throw new Error(recResp.status===401?'Invalid API token. Check your LogMeal token.':`Recognition failed (${recResp.status}). ${errTxt.slice(0,100)}`);
+    }
+
+    const recData=await recResp.json();
+    const imageId=recData.imageId||recData.image_id;
+    const foodGroups=recData.foodGroups||recData.food_groups||[];
+
+    if(!imageId){throw new Error('No food detected in the image. Try a clearer photo.');}
+
+    // Step 2: Get nutritional info for the detected image
+    as.innerHTML='<div class="scan"><div class="spin"></div>Getting nutritional information…</div>';
+
+    const nutResp=await fetch('https://api.logmeal.es/v2/nutrition/recipe/nutritionalInfo',{
+      method:'POST',
+      headers:{'Authorization':'Bearer '+key,'Content-Type':'application/json'},
+      body:JSON.stringify({imageId})
+    });
+
+    let nutData={};
+    if(nutResp.ok) nutData=await nutResp.json();
+
+    // Build detected items list from recognition + nutrition data
+    const detected=[];
+    const dishes=recData.dishes||recData.food_name||[];
+    const dishList=Array.isArray(dishes)?dishes:[{name:dishes,prob:1}];
+
+    // Extract nutritional values from response
+    const nutr=nutData.nutritional_info||nutData.nutritionalInfo||{};
+    const totalCal=nutr.calories||nutr.energy||0;
+    const totalPro=nutr.proteins||nutr.protein||0;
+    const totalCarb=nutr.carbohydrates||nutr.carbs||0;
+    const totalFat=nutr.fat||nutr.fats||0;
+    const totalFib=nutr.fiber||nutr.dietary_fiber||0;
+
+    // If multiple dishes detected, split nutrition proportionally
+    if(dishList.length>0){
+      const n=dishList.length;
+      dishList.forEach((dish,i)=>{
+        const name=dish.name||dish.dish_name||'Food item '+(i+1);
+        // Use fraction of total nutrition per dish (equal split if no per-dish data)
+        detected.push({
+          name:name,
+          grams:Math.round((nutr.weight||200)/n),
+          cal:Math.round(totalCal/n),
+          protein:rf(totalPro/n),
+          carbs:rf(totalCarb/n),
+          fat:rf(totalFat/n),
+          fiber:rf(totalFib/n)
+        });
+      });
+    }
+
     as.innerHTML='';
-    if(!foods||!foods.length){ar.style.display='block';ar.innerHTML='<div class="aic"><div class="ait" style="color:rgba(255,255,255,.7)">⚠️ Could not detect food clearly. Try a closer photo with good lighting, or use the search below.</div></div>';return;}
-    aiIt=foods;ar.style.display='block';
-    const tot=foods.reduce((a,f)=>a+(f.cal||0),0);
-    ar.innerHTML=`<div class="aic"><div class="ait">✅ Detected ${foods.length} item(s) — ~${Math.round(tot)} kcal</div>${foods.map(f=>`<div class="aii"><span class="ain">${f.name} (${f.grams||100}g)</span><span class="aiv">${Math.round(f.cal||0)} kcal</span></div>`).join('')}<button class="aab" onclick="addAI()">✅ Add all to ${ML[curM]}</button></div>`;
+    if(!detected.length){
+      ar.style.display='block';
+      ar.innerHTML='<div class="aic"><div class="ait" style="color:rgba(255,255,255,.7)">⚠️ No food detected. Try a clearer, well-lit photo with the food centred.</div></div>';
+      return;
+    }
+
+    aiIt=detected;ar.style.display='block';
+    const totCal=detected.reduce((a,f)=>a+(f.cal||0),0);
+    ar.innerHTML=`<div class="aic">
+      <div class="ait">✅ Detected ${detected.length} item(s) — ~${Math.round(totCal)} kcal total</div>
+      ${detected.map(f=>`<div class="aii"><span class="ain">${f.name} (~${f.grams}g)</span><span class="aiv">${Math.round(f.cal||0)} kcal</span></div>`).join('')}
+      <button class="aab" onclick="addAI()">✅ Add all to ${ML[curM]}</button>
+    </div>`;
+
   }catch(err){
     as.innerHTML='';ar.style.display='block';
-    ar.innerHTML=`<div class="aic"><div class="ait" style="color:rgba(255,255,255,.7)">⚠️ ${err.message||'Scan failed'}. Check your API key. Use search or manual entry below.</div></div>`;
+    ar.innerHTML=`<div class="aic"><div class="ait" style="color:rgba(255,255,255,.7)">⚠️ ${err.message||'Scan failed'}. Use the food search or manual entry below.</div></div>`;
   }
 }
+
 function addAI(){
   if(!aiIt.length)return;
-  aiIt.forEach(f=>meals[curM].push({name:f.name+'('+(f.grams||100)+'g)',cal:Math.round(f.cal||0),p:rf(f.protein||0),c:rf(f.carbs||0),f:rf(f.fat||0),fb:rf(f.fiber||0),vA:0,vB:0,vC:0,vD:0,vB12:0}));
+  aiIt.forEach(f=>meals[curM].push({
+    name:f.name+'(~'+(f.grams||100)+'g)',
+    cal:Math.round(f.cal||0),p:rf(f.protein||0),c:rf(f.carbs||0),
+    f:rf(f.fat||0),fb:rf(f.fiber||0),vA:0,vB:0,vC:0,vD:0,vB12:0
+  }));
   save();toast('Added '+aiIt.length+' item(s) to '+ML[curM]);aiIt=[];closeLog();
 }
 
