@@ -747,14 +747,7 @@ function scaleF(food,val){
   return{name:food.n+'('+qty+')',cal:Math.round(food.cal*r),p:rf(food.p*r),c:rf(food.cb*r),f:rf(food.f*r),fb:rf(food.fb*r),
     vA:rf(food.vA*r),vB:rf(food.vB*r,2),vC:rf(food.vC*r),vD:rf(food.vD*r,2),vB12:rf(food.vB12*r,2)};
 }
-function allowed(food){
-  const d=prof.diet||'veg';
-  if(d==='nonveg')return true;
-  if(d==='veg')return food.d==='veg';
-  if(d==='egg')return food.d==='veg'||food.d==='egg';
-  if(d==='vegan')return food.d==='veg'&&!['Dairy','Eggs'].includes(food.c);
-  return true;
-}
+function allowed(food){ return true; }
 function getRecos(tot){
   const pD=Math.max(0,tgt.pro-Math.round(tot.p));
   const cD=Math.max(0,tgt.crb-Math.round(tot.c));
