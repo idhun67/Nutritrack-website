@@ -391,11 +391,69 @@
 
 <!-- PROFILE -->
 <div id="sc-prof" class="sc">
-  <div class="tb"><div class="tbl">👤</div><div class="tbt">Profile <span>your stats and targets</span></div></div>
+  <div class="tb"><div class="tbl">👤</div><div class="tbt">Profile <span>stats · history · weight tracker</span></div></div>
   <div class="psc">
+    <!-- Avatar & name -->
     <div class="ph"><div class="pav" id="pav">?</div><div class="pnm" id="pnm"></div><div class="psb" id="psb"></div></div>
+
+    <!-- Stats -->
     <div class="card"><div id="prows"></div></div>
-    <div class="sb">💾 Profile saved in this browser</div>
+
+    <!-- Timezone setting -->
+    <div class="card" style="margin-top:12px">
+      <div style="font-size:13px;font-weight:700;color:var(--c9);margin-bottom:10px">🌏 Timezone</div>
+      <div style="font-size:12px;color:var(--c4);margin-bottom:8px">Set your timezone so meal time recommendations are accurate.</div>
+      <select id="tz-select" style="width:100%;padding:10px 12px;border:1.5px solid var(--c2);border-radius:var(--rsm);font-size:14px;font-family:var(--fb);background:var(--wh);color:var(--c9);outline:none;margin-bottom:10px">
+        <option value="+5.5">India Standard Time (IST) — UTC +5:30</option>
+        <option value="+0">Greenwich Mean Time (GMT) — UTC +0:00</option>
+        <option value="+1">Central European Time (CET) — UTC +1:00</option>
+        <option value="+2">Eastern European Time (EET) — UTC +2:00</option>
+        <option value="+3">Moscow / Arabia Time — UTC +3:00</option>
+        <option value="+4">Gulf Standard Time (GST) — UTC +4:00</option>
+        <option value="+4.5">Afghanistan Time (AFT) — UTC +4:30</option>
+        <option value="+5">Pakistan Standard Time (PKT) — UTC +5:00</option>
+        <option value="+6">Bangladesh / Bhutan Time — UTC +6:00</option>
+        <option value="+6.5">Myanmar Time (MMT) — UTC +6:30</option>
+        <option value="+7">Indochina / Thailand Time — UTC +7:00</option>
+        <option value="+8">China / Singapore / HK — UTC +8:00</option>
+        <option value="+9">Japan / Korea Standard Time — UTC +9:00</option>
+        <option value="+9.5">Australian Central Time (ACST) — UTC +9:30</option>
+        <option value="+10">Australian Eastern Time (AEST) — UTC +10:00</option>
+        <option value="+12">New Zealand Time (NZST) — UTC +12:00</option>
+        <option value="-5">Eastern Standard Time (EST) — UTC -5:00</option>
+        <option value="-6">Central Standard Time (CST) — UTC -6:00</option>
+        <option value="-7">Mountain Standard Time (MST) — UTC -7:00</option>
+        <option value="-8">Pacific Standard Time (PST) — UTC -8:00</option>
+        <option value="-3">Brasilia / Argentina Time — UTC -3:00</option>
+        <option value="-4">Atlantic / Chile Standard — UTC -4:00</option>
+      </select>
+      <button class="btn bp" style="padding:10px" onclick="saveTZ()">Save timezone</button>
+      <div id="tz-saved" style="display:none;font-size:12px;color:var(--g);margin-top:6px;font-weight:600">✓ Timezone saved</div>
+    </div>
+
+    <!-- Weight tracker -->
+    <div class="card" style="margin-top:12px">
+      <div style="font-size:13px;font-weight:700;color:var(--c9);margin-bottom:10px">⚖️ Weight Tracker</div>
+      <div style="display:flex;gap:10px;margin-bottom:12px">
+        <input type="number" id="wt-val" placeholder="Enter weight (kg)" min="20" max="300" step="0.1"
+          style="flex:1;margin-bottom:0">
+        <button class="btn bp" style="padding:10px 14px;min-height:44px;font-size:13px;width:auto" onclick="logWeight()">Log</button>
+      </div>
+      <div id="wt-history" style="display:flex;flex-direction:column;gap:0"></div>
+      <div id="wt-empty" style="font-size:13px;color:var(--c4);text-align:center;padding:12px 0">No weight entries yet. Log your first one above.</div>
+    </div>
+
+    <!-- Meal history -->
+    <div class="card" style="margin-top:12px;margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div style="font-size:13px;font-weight:700;color:var(--c9)">📋 Meal History</div>
+        <select id="hist-sel" style="font-size:12px;padding:4px 8px;border:1px solid var(--c2);border-radius:var(--rsm);background:var(--wh);color:var(--c9);outline:none" onchange="renderHistory()">
+        </select>
+      </div>
+      <div id="hist-body"></div>
+    </div>
+
+    <div class="sb">💾 All data saved in this browser</div>
     <button class="btn bse" style="margin-top:10px" onclick="editP()">✏️ Edit profile</button>
     <button class="db" onclick="clearAll()">🗑️ Clear all data</button>
     <a href="index.html" class="bks">← Back to website</a>
@@ -547,13 +605,19 @@ const FDB=[
 {n:'Condensed milk',c:'Dairy',d:'veg',cal:321,p:8,cb:54,f:8.7,fb:0,vA:0,vB:0.07,vC:2,vD:0.2,vB12:0.4},
 {n:'Khoa mawa',c:'Dairy',d:'veg',cal:380,p:17,cb:30,f:22,fb:0,vA:80,vB:0.1,vC:0,vD:0.5,vB12:1},
 // ── EGGS ──
-{n:'Boiled egg',c:'Eggs',d:'egg',cal:78,p:6,cb:0.6,f:5,fb:0,vA:80,vB:0.04,vC:0,vD:1.1,vB12:0.6,pcs:true,gpp:50},
-{n:'Egg white',c:'Eggs',d:'egg',cal:17,p:3.6,cb:0.2,f:0.1,fb:0,vA:0,vB:0.005,vC:0,vD:0,vB12:0.03,pcs:true,gpp:33},
-{n:'Omelette 2 eggs',c:'Eggs',d:'egg',cal:190,p:14,cb:1,f:14,fb:0,vA:140,vB:0.1,vC:0,vD:2,vB12:1.2,pcs:true,gpp:100},
-{n:'Scrambled egg 1 egg',c:'Eggs',d:'egg',cal:91,p:6.1,cb:1.6,f:6.7,fb:0,vA:97,vB:0.06,vC:0,vD:1.3,vB12:0.7,pcs:true,gpp:61},
-{n:'Fried egg 1 egg',c:'Eggs',d:'egg',cal:90,p:6.3,cb:0.4,f:7,fb:0,vA:72,vB:0.04,vC:0,vD:1.1,vB12:0.6,pcs:true,gpp:46},
-{n:'Egg bhurji 2 eggs',c:'Eggs',d:'egg',cal:195,p:13,cb:4,f:13,fb:0.5,vA:125,vB:0.08,vC:4,vD:1.8,vB12:1.1,pcs:true,gpp:110},
-{n:'Egg curry',c:'Eggs',d:'egg',cal:175,p:11,cb:6,f:12,fb:0.5,vA:85,vB:0.07,vC:3,vD:1.2,vB12:0.8,pcs:true,gpp:90},
+// ── EGGS — All values per piece (USDA FoodData Central verified) ──
+// Boiled egg (large, 50g): USDA FDC #173424 — 68 kcal, 5.5g protein, 4.8g fat, 0.3g carbs
+// Raw whole egg per 100g: 143 kcal, 12.56g protein, 9.51g fat, 0.72g carbs
+// Vit A: 160mcg/100g → 80mcg/50g | Vit D: 2mcg/100g → 1mcg/50g | B12: 0.89mcg/100g → 0.45mcg/50g
+// Vit B1 (Thiamine): 0.04mg/100g → 0.02mg/50g | All values: per piece, gpp = grams per piece
+{n:'Boiled egg (large)',    c:'Eggs',d:'egg',cal:68, p:5.5, cb:0.3,f:4.8,fb:0,vA:80, vB:0.02,vC:0,vD:1.0,vB12:0.45,pcs:true,gpp:50},
+{n:'Egg white only',        c:'Eggs',d:'egg',cal:17, p:3.6, cb:0.2,f:0.1,fb:0,vA:0,  vB:0.00,vC:0,vD:0,  vB12:0.03,pcs:true,gpp:33},
+{n:'Omelette (1 large egg)',c:'Eggs',d:'egg',cal:94, p:6.4, cb:0.4,f:7.3,fb:0,vA:80, vB:0.02,vC:0,vD:1.0,vB12:0.45,pcs:true,gpp:46},
+{n:'Scrambled egg (1 egg)', c:'Eggs',d:'egg',cal:101,p:6.8, cb:1.4,f:7.5,fb:0,vA:80, vB:0.03,vC:0,vD:1.0,vB12:0.45,pcs:true,gpp:61},
+{n:'Fried egg (1 large)',   c:'Eggs',d:'egg',cal:90, p:6.3, cb:0.4,f:6.8,fb:0,vA:71, vB:0.02,vC:0,vD:0.9,vB12:0.44,pcs:true,gpp:46},
+{n:'Egg bhurji (1 egg)',    c:'Eggs',d:'egg',cal:110,p:6.5, cb:2.0,f:7.5,fb:0.2,vA:80,vB:0.03,vC:2.0,vD:1.0,vB12:0.45,pcs:true,gpp:55},
+{n:'Egg curry (1 egg)',     c:'Eggs',d:'egg',cal:120,p:6.5, cb:3.5,f:8.0,fb:0.3,vA:75,vB:0.03,vC:1.5,vD:0.9,vB12:0.44,pcs:true,gpp:90},
+{n:'Poached egg (1 large)', c:'Eggs',d:'egg',cal:68, p:5.5, cb:0.3,f:4.8,fb:0,vA:80, vB:0.02,vC:0,vD:1.0,vB12:0.45,pcs:true,gpp:50},
 // ── CHICKEN ──
 {n:'Grilled chicken breast',c:'Chicken',d:'nonveg',cal:165,p:31,cb:0,f:3.6,fb:0,vA:9,vB:0.9,vC:0,vD:0.1,vB12:0.3},
 {n:'Chicken curry',c:'Chicken',d:'nonveg',cal:175,p:18,cb:6,f:9,fb:0.5,vA:25,vB:0.1,vC:3,vD:0.1,vB12:0.4},
@@ -718,7 +782,7 @@ let prof={sex:'male',goal:'lose',life:'sedentary',diet:'veg'};
 let tgt={},meals={breakfast:[],lunch:[],dinner:[],snacks:[]},wml=0;
 let curM='breakfast',selF=null,srl=[],flt='all',aiIt=[],qM='g';
 
-function save(){try{localStorage.setItem(SK,JSON.stringify({prof,tgt,meals,wml}));}catch(e){}}
+function save(){try{localStorage.setItem(SK,JSON.stringify({prof,tgt,meals,wml}));snapshotToday();}catch(e){}}
 function load(){try{const d=JSON.parse(localStorage.getItem(SK));if(d){prof=d.prof||prof;tgt=d.tgt||tgt;meals=d.meals||meals;wml=d.wml||0;return true;}}catch(e){}return false;}
 function ssc(id){document.querySelectorAll('.sc').forEach(s=>s.classList.remove('active'));document.getElementById('sc-'+id).classList.add('active');window.scrollTo(0,0);}
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
@@ -1347,28 +1411,205 @@ function renderVit(){
   document.getElementById('vlist').innerHTML=vits.map(v=>{const pct=Math.min(100,Math.round((v.g/v.t)*100));const col=pct>=80?'#1D9E75':pct>=40?'#EF9F27':'#E24B4A';return`<div class="vr"><div class="vi">${v.i}</div><div class="vinf"><div class="vn">${v.n}</div><div class="vs">${v.s}</div><div class="vp"><div class="vb"><div class="vbf" style="width:${pct}%;background:${col}"></div></div><div class="vpc">${pct}%</div></div></div><div class="vr2"><div class="vt">${v.t}${v.u}</div><div class="vc">${v.g} eaten</div></div></div>`;}).join('');
 }
 
-// ── PROFILE ──
+// ── TIMEZONE ──────────────────────────────────────────────────────────────
+// User-set timezone offset in hours (default +5.5 = India)
+function getTZOffset(){ return parseFloat(localStorage.getItem('tz_offset')||'5.5'); }
+function getUserHour(){
+  const offset=getTZOffset();
+  const utcMs=Date.now();
+  const localMs=utcMs+(offset*3600*1000);
+  return new Date(localMs).getUTCHours();
+}
+function getTimeSlot(){
+  const h=getUserHour();
+  if(h>=5&&h<11) return'breakfast';
+  if(h>=11&&h<15)return'lunch';
+  if(h>=15&&h<18)return'snacks';
+  if(h>=18&&h<23)return'dinner';
+  return'snacks';
+}
+function getTimeLabel(){
+  const h=getUserHour();
+  if(h>=5&&h<11) return'🌅 Morning ('+h+':00)';
+  if(h>=11&&h<15)return'☀️ Afternoon ('+h+':00)';
+  if(h>=15&&h<18)return'🍎 Evening ('+h+':00)';
+  if(h>=18&&h<23)return'🌙 Night ('+h+':00)';
+  return'🌙 Late night ('+h+':00)';
+}
+function saveTZ(){
+  const v=document.getElementById('tz-select').value;
+  localStorage.setItem('tz_offset',v);
+  document.getElementById('tz-saved').style.display='block';
+  setTimeout(()=>document.getElementById('tz-saved').style.display='none',2500);
+  toast('Timezone saved');
+}
+
+// ── WEIGHT TRACKER ──────────────────────────────────────────────────────────
+const WT_KEY='nt_weights';
+function loadWeights(){try{return JSON.parse(localStorage.getItem(WT_KEY)||'[]');}catch(e){return[];}}
+function saveWeights(arr){try{localStorage.setItem(WT_KEY,JSON.stringify(arr));}catch(e){}}
+
+function logWeight(){
+  const val=parseFloat(document.getElementById('wt-val').value);
+  if(!val||val<20||val>300){toast('Enter a valid weight (20–300 kg)');return;}
+  const arr=loadWeights();
+  const tzOff=getTZOffset();
+  const localMs=Date.now()+(tzOff*3600*1000);
+  const d=new Date(localMs);
+  const dateStr=d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0');
+  // If entry for today exists, update it; otherwise add new
+  const idx=arr.findIndex(e=>e.date===dateStr);
+  if(idx>=0) arr[idx]={date:dateStr,kg:val};
+  else arr.unshift({date:dateStr,kg:val});
+  saveWeights(arr);
+  document.getElementById('wt-val').value='';
+  // Auto-update profile weight to latest
+  prof.weight=val;
+  tgt=calcT(prof);
+  save();
+  toast('Weight logged: '+val+' kg');
+  renderWeightHistory();
+}
+
+function deleteWeight(idx){
+  const arr=loadWeights();
+  arr.splice(idx,1);
+  saveWeights(arr);
+  renderWeightHistory();
+  toast('Entry deleted');
+}
+
+function renderWeightHistory(){
+  const arr=loadWeights();
+  const histEl=document.getElementById('wt-history');
+  const emptyEl=document.getElementById('wt-empty');
+  if(!arr.length){if(histEl)histEl.innerHTML='';if(emptyEl)emptyEl.style.display='block';return;}
+  if(emptyEl)emptyEl.style.display='none';
+  // Show mini trend
+  const trend=arr.length>=2?(arr[0].kg-arr[arr.length-1].kg).toFixed(1):null;
+  const trendHtml=trend!==null?`<div style="font-size:12px;color:${parseFloat(trend)>0?'var(--rd)':'var(--g)'};font-weight:600;margin-bottom:8px">${parseFloat(trend)>0?'↑ +'+trend+' kg vs first entry':'↓ '+Math.abs(trend)+' kg vs first entry'}</div>`:'';
+  if(histEl) histEl.innerHTML=trendHtml+arr.slice(0,10).map((e,i)=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--c1)">
+      <div>
+        <div style="font-size:13px;font-weight:600;color:var(--c9)">${e.kg} kg</div>
+        <div style="font-size:11px;color:var(--c4)">${e.date}</div>
+      </div>
+      <button onclick="deleteWeight(${i})" style="background:none;border:1px solid #fca5a5;color:var(--rd);border-radius:var(--rsm);padding:4px 10px;font-size:11px;cursor:pointer;font-family:var(--fb);">Delete</button>
+    </div>`).join('');
+}
+
+// ── MEAL HISTORY ──────────────────────────────────────────────────────────
+const HIST_KEY='nt_hist';
+function loadHistory(){try{return JSON.parse(localStorage.getItem(HIST_KEY)||'{}');}catch(e){return{};}}
+function saveHistory(obj){try{localStorage.setItem(HIST_KEY,JSON.stringify(obj));}catch(e){}}
+
+function snapshotToday(){
+  // Called every time a meal is saved — stores a copy of today's meals keyed by date
+  const hist=loadHistory();
+  const tzOff=getTZOffset();
+  const localMs=Date.now()+(tzOff*3600*1000);
+  const d=new Date(localMs);
+  const dateStr=d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0');
+  const tot=getTot();
+  hist[dateStr]={meals:JSON.parse(JSON.stringify(meals)),cal:Math.round(tot.cal),pro:Math.round(tot.p),carb:Math.round(tot.c),fat:Math.round(tot.f)};
+  // Keep only last 30 days
+  const keys=Object.keys(hist).sort().reverse().slice(0,30);
+  const trimmed={};keys.forEach(k=>trimmed[k]=hist[k]);
+  saveHistory(trimmed);
+}
+
+function renderHistory(){
+  const hist=loadHistory();
+  const keys=Object.keys(hist).sort().reverse();
+  // Populate date select
+  const sel=document.getElementById('hist-sel');
+  if(sel){
+    const cur=sel.value;
+    sel.innerHTML=keys.length?keys.map(k=>`<option value="${k}">${k}</option>`).join(''):'<option>No history yet</option>';
+    if(cur&&keys.includes(cur))sel.value=cur;
+  }
+  const dateKey=sel?sel.value:'';
+  const body=document.getElementById('hist-body');
+  if(!body)return;
+  if(!keys.length){body.innerHTML='<div style="font-size:13px;color:var(--c4);text-align:center;padding:12px 0">No meal history yet. Your meals are saved automatically each day.</div>';return;}
+  const day=hist[dateKey];
+  if(!day){body.innerHTML='';return;}
+  const MC2={breakfast:'#EF9F27',lunch:'#1D9E75',snacks:'#D4537E',dinner:'#7F77DD'};
+  const ML2={breakfast:'🌅 Breakfast',lunch:'☀️ Lunch',snacks:'🍎 Snacks',dinner:'🌙 Dinner'};
+  body.innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+      <div style="background:var(--gl);border-radius:var(--rsm);padding:10px;text-align:center"><div style="font-size:20px;font-weight:800;color:var(--gd)">${day.cal}</div><div style="font-size:10px;color:var(--g)">kcal</div></div>
+      <div style="background:var(--of);border-radius:var(--rsm);padding:10px;text-align:center"><div style="font-size:14px;font-weight:700;color:var(--c9)">P:${day.pro}g C:${day.carb}g F:${day.fat}g</div><div style="font-size:10px;color:var(--c4)">macros</div></div>
+    </div>
+    ${['breakfast','lunch','snacks','dinner'].map(key=>{
+      const items=(day.meals||{})[key]||[];
+      if(!items.length)return'';
+      return`<div style="margin-bottom:10px">
+        <div style="font-size:12px;font-weight:700;color:${MC2[key]};margin-bottom:4px">${ML2[key]}</div>
+        ${items.map(it=>`<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--c6);padding:3px 0;border-top:1px solid var(--c1)"><span>${it.name}</span><span style="font-weight:600;color:var(--c9)">${Math.round(it.cal)} kcal</span></div>`).join('')}
+      </div>`;
+    }).join('')}`;
+}
+
+// ── PROFILE RENDER ─────────────────────────────────────────────────────────
 function renderProf(){
   const fn=prof.name.split(' ')[0];
   document.getElementById('pav').textContent=fn[0].toUpperCase();
   document.getElementById('pnm').textContent=prof.name;
   document.getElementById('psb').textContent=DL[prof.diet||'veg']+' · '+GL[prof.goal]+' · '+LL[prof.life];
-  const rows=[['Sex',prof.sex==='male'?'Male':'Female'],['Age',prof.age+' years'],['Height',prof.height+' cm'],['Weight',prof.weight+' kg'],['Diet',DL[prof.diet||'veg']],['Goal',GL[prof.goal]],['Lifestyle',LL[prof.life]],['Daily calories',tgt.cal+' kcal'],['Protein',tgt.pro+'g'],['Carbs',tgt.crb+'g'],['Fat',tgt.fat+'g'],['Water goal',tgt.wat+' ml/day']];
+  const rows=[
+    ['Sex',prof.sex==='male'?'Male':'Female'],
+    ['Age',prof.age+' years'],
+    ['Height',prof.height+' cm'],
+    ['Current weight',prof.weight+' kg'],
+    ['Diet',DL[prof.diet||'veg']],
+    ['Goal',GL[prof.goal]],
+    ['Lifestyle',LL[prof.life]],
+    ['Daily calories',tgt.cal+' kcal'],
+    ['Protein target',tgt.pro+'g'],
+    ['Carbs target',tgt.crb+'g'],
+    ['Fat target',tgt.fat+'g'],
+    ['Water goal',tgt.wat+' ml/day'],
+    ['Timezone','UTC '+(getTZOffset()>=0?'+':'')+getTZOffset()],
+  ];
   document.getElementById('prows').innerHTML=rows.map(([k,v])=>`<div class="pr"><span class="pk">${k}</span><span class="pv">${v}</span></div>`).join('');
+  // Set timezone dropdown
+  const tzSel=document.getElementById('tz-select');
+  if(tzSel) tzSel.value=String(getTZOffset());
+  renderWeightHistory();
+  renderHistory();
 }
-function editP(){ssc('s1');document.getElementById('fn').value=prof.name||'';document.getElementById('fa').value=prof.age||'';document.getElementById('fh').value=prof.height||'';document.getElementById('fw').value=prof.weight||'';}
-function clearAll(){if(!confirm('Delete all data?'))return;try{localStorage.removeItem(SK);}catch(e){}prof={sex:'male',goal:'lose',life:'sedentary',diet:'veg'};tgt={};meals={breakfast:[],lunch:[],dinner:[],snacks:[]};wml=0;ssc('splash');}
 
-// ── TABS ──
+function editP(){
+  ssc('s1');
+  document.getElementById('fn').value=prof.name||'';
+  document.getElementById('fa').value=prof.age||'';
+  document.getElementById('fh').value=prof.height||'';
+  document.getElementById('fw').value=prof.weight||'';
+}
+
+function clearAll(){
+  if(!confirm('Delete all data including meal history and weight records?'))return;
+  try{localStorage.removeItem(SK);localStorage.removeItem(WT_KEY);localStorage.removeItem(HIST_KEY);}catch(e){}
+  prof={sex:'male',goal:'lose',life:'sedentary',diet:'veg'};
+  tgt={};meals={breakfast:[],lunch:[],dinner:[],snacks:[]};wml=0;
+  ssc('splash');
+}
+
+// ── TABS ──────────────────────────────────────────────────────────────────
 function sw(tab){
   ssc(tab==='vit'?'vit':tab==='prof'?'prof':'home');
   document.querySelectorAll('.nt').forEach(b=>b.classList.remove('active'));
   document.querySelectorAll('.nt').forEach(b=>{const l=b.querySelector('.nl');if((tab==='home'&&l.textContent==='Today')||(tab==='vit'&&l.textContent==='Vitamins')||(tab==='prof'&&l.textContent==='Profile'))b.classList.add('active');});
-  if(tab==='home')renderHome();if(tab==='vit')renderVit();if(tab==='prof')renderProf();
+  if(tab==='home')renderHome();
+  if(tab==='vit')renderVit();
+  if(tab==='prof')renderProf();
 }
 
-// ── BOOT ──
-window.addEventListener('load',()=>{if(load()&&prof.name&&tgt.cal){launch();}else ssc('splash');});
+// ── BOOT ──────────────────────────────────────────────────────────────────
+window.addEventListener('load',()=>{
+  if(load()&&prof.name&&tgt.cal){launch();}else ssc('splash');
+});
 </script>
 </body>
 </html>
