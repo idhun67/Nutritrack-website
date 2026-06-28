@@ -605,19 +605,19 @@ const FDB=[
 {n:'Condensed milk',c:'Dairy',d:'veg',cal:321,p:8,cb:54,f:8.7,fb:0,vA:0,vB:0.07,vC:2,vD:0.2,vB12:0.4},
 {n:'Khoa mawa',c:'Dairy',d:'veg',cal:380,p:17,cb:30,f:22,fb:0,vA:80,vB:0.1,vC:0,vD:0.5,vB12:1},
 // ── EGGS ──
-// ── EGGS — All values per piece (USDA FoodData Central verified) ──
-// Boiled egg (large, 50g): USDA FDC #173424 — 68 kcal, 5.5g protein, 4.8g fat, 0.3g carbs
-// Raw whole egg per 100g: 143 kcal, 12.56g protein, 9.51g fat, 0.72g carbs
-// Vit A: 160mcg/100g → 80mcg/50g | Vit D: 2mcg/100g → 1mcg/50g | B12: 0.89mcg/100g → 0.45mcg/50g
-// Vit B1 (Thiamine): 0.04mg/100g → 0.02mg/50g | All values: per piece, gpp = grams per piece
-{n:'Boiled egg (large)',    c:'Eggs',d:'egg',cal:68, p:5.5, cb:0.3,f:4.8,fb:0,vA:80, vB:0.02,vC:0,vD:1.0,vB12:0.45,pcs:true,gpp:50},
-{n:'Egg white only',        c:'Eggs',d:'egg',cal:17, p:3.6, cb:0.2,f:0.1,fb:0,vA:0,  vB:0.00,vC:0,vD:0,  vB12:0.03,pcs:true,gpp:33},
-{n:'Omelette (1 large egg)',c:'Eggs',d:'egg',cal:94, p:6.4, cb:0.4,f:7.3,fb:0,vA:80, vB:0.02,vC:0,vD:1.0,vB12:0.45,pcs:true,gpp:46},
-{n:'Scrambled egg (1 egg)', c:'Eggs',d:'egg',cal:101,p:6.8, cb:1.4,f:7.5,fb:0,vA:80, vB:0.03,vC:0,vD:1.0,vB12:0.45,pcs:true,gpp:61},
-{n:'Fried egg (1 large)',   c:'Eggs',d:'egg',cal:90, p:6.3, cb:0.4,f:6.8,fb:0,vA:71, vB:0.02,vC:0,vD:0.9,vB12:0.44,pcs:true,gpp:46},
-{n:'Egg bhurji (1 egg)',    c:'Eggs',d:'egg',cal:110,p:6.5, cb:2.0,f:7.5,fb:0.2,vA:80,vB:0.03,vC:2.0,vD:1.0,vB12:0.45,pcs:true,gpp:55},
-{n:'Egg curry (1 egg)',     c:'Eggs',d:'egg',cal:120,p:6.5, cb:3.5,f:8.0,fb:0.3,vA:75,vB:0.03,vC:1.5,vD:0.9,vB12:0.44,pcs:true,gpp:90},
-{n:'Poached egg (1 large)', c:'Eggs',d:'egg',cal:68, p:5.5, cb:0.3,f:4.8,fb:0,vA:80, vB:0.02,vC:0,vD:1.0,vB12:0.45,pcs:true,gpp:50},
+// ── EGGS — USDA FoodData Central FDC #173424 ──
+// ALL values stored per 100g (same as every other food in this database)
+// scaleF multiplies by gpp/100 to get per-piece values correctly
+// Boiled large egg (50g): 78kcal, P:6.3g, Fat:5.3g — so per 100g: 156kcal, P:12.6g, Fat:10.6g
+// Vit A: 160mcg/100g | Vit D: 2.2mcg/100g | B12: 1.12mcg/100g | B1: 0.04mg/100g
+{n:'Boiled egg (large)',    c:'Eggs',d:'egg',cal:156, p:12.6, cb:1.1, f:10.6, fb:0, vA:160, vB:0.04,vC:0,vD:2.2,vB12:1.12,pcs:true,gpp:50},
+{n:'Egg white only',        c:'Eggs',d:'egg',cal:52,  p:10.9, cb:0.7, f:0.2,  fb:0, vA:0,   vB:0.01,vC:0,vD:0,  vB12:0.09,pcs:true,gpp:33},
+{n:'Omelette (1 large egg)',c:'Eggs',d:'egg',cal:204, p:13.7, cb:0.9, f:15.2, fb:0, vA:160, vB:0.04,vC:0,vD:2.2,vB12:1.12,pcs:true,gpp:46},
+{n:'Scrambled egg (1 egg)', c:'Eggs',d:'egg',cal:149, p:10.0, cb:2.3, f:11.5, fb:0, vA:149, vB:0.05,vC:0,vD:2.0,vB12:1.12,pcs:true,gpp:61},
+{n:'Fried egg (1 large)',   c:'Eggs',d:'egg',cal:196, p:13.7, cb:0.9, f:14.8, fb:0, vA:160, vB:0.04,vC:0,vD:2.2,vB12:1.12,pcs:true,gpp:46},
+{n:'Egg bhurji (1 egg)',    c:'Eggs',d:'egg',cal:200, p:11.8, cb:3.6, f:13.6, fb:0.4,vA:145, vB:0.05,vC:3.6,vD:2.0,vB12:1.02,pcs:true,gpp:55},
+{n:'Egg curry (1 egg)',     c:'Eggs',d:'egg',cal:139, p:7.0,  cb:3.9, f:8.3,  fb:0.3,vA:89,  vB:0.03,vC:1.7,vD:1.2,vB12:0.62,pcs:true,gpp:90},
+{n:'Poached egg (1 large)', c:'Eggs',d:'egg',cal:144, p:12.6, cb:0.8, f:9.6,  fb:0, vA:160, vB:0.04,vC:0,vD:2.2,vB12:1.12,pcs:true,gpp:50},
 // ── CHICKEN ──
 {n:'Grilled chicken breast',c:'Chicken',d:'nonveg',cal:165,p:31,cb:0,f:3.6,fb:0,vA:9,vB:0.9,vC:0,vD:0.1,vB12:0.3},
 {n:'Chicken curry',c:'Chicken',d:'nonveg',cal:175,p:18,cb:6,f:9,fb:0.5,vA:25,vB:0.1,vC:3,vD:0.1,vB12:0.4},
