@@ -315,15 +315,10 @@
   <div class="tb"><button class="tbb" onclick="closeLog()">← Back</button><div class="tbt" id="lt">Log meal <span>AI scan · search · manual</span></div></div>
   <div class="lsc">
     <div class="lbdg" id="lb">🍳 Breakfast</div>
-    <!-- LOGMEAL AI PHOTO SCAN -->
+    <!-- ON-DEVICE AI PHOTO SCAN (no API key) -->
     <div class="psec">
-      <div class="pt">📸 AI Photo Detection <span style="font-size:10px;background:rgba(255,255,255,.15);padding:2px 7px;border-radius:var(--rfl);margin-left:6px">LogMeal AI</span></div>
-      <div class="ps">Snap your meal — LogMeal AI detects food items and adds nutrition data automatically. Recognises 1300+ dishes.</div>
-      <div class="akin">Free LogMeal API key needed. Sign up at <a href="https://logmeal.com/api/" target="_blank">logmeal.com/api</a> — free tier includes 200 scans/month. No credit card needed.</div>
-      <div class="akr">
-        <input type="password" class="aki" id="gk" placeholder="Paste LogMeal API token">
-        <button class="aks" onclick="saveKey()">Save</button>
-      </div>
+      <div class="pt">📸 AI Photo Detection <span style="font-size:10px;background:rgba(255,255,255,.15);padding:2px 7px;border-radius:var(--rfl);margin-left:6px">On-device · No key</span></div>
+      <div class="ps">Snap your meal — AI runs on your device to identify the food, then matches it to the database. No API key, no sign-up. Works best for common &amp; Western foods; for Indian dishes the search below is more precise.</div>
       <div class="pbr">
         <button class="pb2 pb2p" onclick="tCam()">📷 Camera</button>
         <button class="pb2 pb2s" onclick="tGal()">🖼️ Upload</button>
@@ -443,6 +438,37 @@
       <div id="wt-empty" style="font-size:13px;color:var(--c4);text-align:center;padding:12px 0">No weight entries yet. Log your first one above.</div>
     </div>
 
+    <!-- Nutrient intake graphs -->
+    <div class="card" style="margin-top:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-size:13px;font-weight:700;color:var(--c9)">📈 Nutrient Intake Trends</div>
+        <select id="graph-sel" style="font-size:12px;padding:4px 8px;border:1px solid var(--c2);border-radius:var(--rsm);background:var(--wh);color:var(--c9);outline:none" onchange="renderGraph()">
+          <optgroup label="Energy & Macros">
+            <option value="cal">Calories</option>
+            <option value="p">Protein</option>
+            <option value="c">Carbs</option>
+            <option value="f">Fat</option>
+            <option value="fb">Fiber</option>
+          </optgroup>
+          <optgroup label="Vitamins">
+            <option value="vA">Vitamin A</option>
+            <option value="vB">Vitamin B1</option>
+            <option value="vC">Vitamin C</option>
+            <option value="vD">Vitamin D</option>
+            <option value="vB12">Vitamin B12</option>
+          </optgroup>
+          <optgroup label="Minerals">
+            <option value="na">Sodium</option>
+            <option value="k">Potassium</option>
+            <option value="ca">Calcium</option>
+            <option value="fe">Iron</option>
+          </optgroup>
+        </select>
+      </div>
+      <div style="font-size:11px;color:var(--c4);margin-bottom:10px">Daily intake over the last 14 days. The dashed line is your target.</div>
+      <div id="graph-body"></div>
+    </div>
+
     <!-- Meal history -->
     <div class="card" style="margin-top:12px;margin-bottom:12px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
@@ -467,6 +493,8 @@
 </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js"></script>
 <script src="foods.js"></script>
 <script>
 // Foods loaded from foods.js (2000+ items)
@@ -482,15 +510,17 @@ const SK='nt_v4';
 
 let prof={sex:'male',goal:'lose',life:'sedentary',diet:'veg'};
 let tgt={},meals={breakfast:[],lunch:[],dinner:[],snacks:[]},wml=0;
-let curM='breakfast',selF=null,srl=[],flt='all',aiIt=[],qM='g';
+let curM='breakfast',selF=null,srl=[],flt='all',aiIt=[],aiMatch=null,qM='g';
 
 function save(){try{localStorage.setItem(SK,JSON.stringify({prof,tgt,meals,wml}));snapshotToday();}catch(e){}}
-function load(){try{const d=JSON.parse(localStorage.getItem(SK));if(d){prof=d.prof||prof;tgt=d.tgt||tgt;meals=d.meals||meals;wml=d.wml||0;return true;}}catch(e){}return false;}
+function load(){try{const d=JSON.parse(localStorage.getItem(SK));if(d){prof=d.prof||prof;tgt=d.tgt||tgt;meals=d.meals||meals;wml=d.wml||0;
+  // Recompute targets on load so existing users gain new fields (e.g. minerals)
+  // without re-onboarding. Data (meals, weights, history) is never erased.
+  if(prof&&prof.weight&&prof.age)tgt=calcT(prof);
+  return true;}}catch(e){}return false;}
 function ssc(id){document.querySelectorAll('.sc').forEach(s=>s.classList.remove('active'));document.getElementById('sc-'+id).classList.add('active');window.scrollTo(0,0);}
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
 function rf(n,d=1){return parseFloat((n||0).toFixed(d));}
-function saveKey(){const k=document.getElementById('gk').value.trim();if(k){localStorage.setItem('gk',k);toast('Key saved!');}else toast('Enter a valid key');}
-function getKey(){return localStorage.getItem('gk')||'';}
 
 // ── CALC ──
 function calcT(p){
@@ -499,11 +529,17 @@ function calcT(p){
   const cal=Math.max(1200,Math.round(bmr*af)+({lose:-500,maintain:0,gain:300}[p.goal]||0));
   return{cal,pro:Math.round(p.weight*1.8),crb:Math.round((cal*.45)/4),fat:Math.round((cal*.25)/9),
     fib:p.sex==='male'?38:25,vA:p.sex==='male'?900:700,vB:p.sex==='male'?1.2:1.1,
-    vC:p.sex==='male'?90:75,vD:15,vB12:2.4,wat:Math.round(p.weight*35/100)*100};
+    vC:p.sex==='male'?90:75,vD:15,vB12:2.4,wat:Math.round(p.weight*35/100)*100,
+    na:2000,k:3500,ca:1000,fe:p.sex==='male'?17:21};
 }
 function getTot(){
-  const z={cal:0,p:0,c:0,f:0,fb:0,vA:0,vB:0,vC:0,vD:0,vB12:0};
-  Object.values(meals).flat().forEach(i=>{z.cal+=i.cal;z.p+=i.p;z.c+=i.c;z.f+=i.f;z.fb+=i.fb;z.vA+=i.vA;z.vB+=i.vB;z.vC+=i.vC;z.vD+=i.vD;z.vB12+=i.vB12;});
+  const z={cal:0,p:0,c:0,f:0,fb:0,vA:0,vB:0,vC:0,vD:0,vB12:0,na:0,k:0,ca:0,fe:0};
+  Object.values(meals).flat().forEach(i=>{z.cal+=i.cal;z.p+=i.p;z.c+=i.c;z.f+=i.f;z.fb+=i.fb;z.vA+=i.vA;z.vB+=i.vB;z.vC+=i.vC;z.vD+=i.vD;z.vB12+=i.vB12;z.na+=i.na||0;z.k+=i.k||0;z.ca+=i.ca||0;z.fe+=i.fe||0;});
+  return z;
+}
+function totalsFrom(mealsObj){
+  const z={cal:0,p:0,c:0,f:0,fb:0,vA:0,vB:0,vC:0,vD:0,vB12:0,na:0,k:0,ca:0,fe:0};
+  Object.values(mealsObj||{}).flat().forEach(i=>{z.cal+=i.cal||0;z.p+=i.p||0;z.c+=i.c||0;z.f+=i.f||0;z.fb+=i.fb||0;z.vA+=i.vA||0;z.vB+=i.vB||0;z.vC+=i.vC||0;z.vD+=i.vD||0;z.vB12+=i.vB12||0;z.na+=i.na||0;z.k+=i.k||0;z.ca+=i.ca||0;z.fe+=i.fe||0;});
   return z;
 }
 function scaleF(food,val){
@@ -511,7 +547,8 @@ function scaleF(food,val){
   const r=g/100;
   const qty=food.pcs&&qM==='pcs'?val+'pcs':g+'g';
   return{name:food.n+'('+qty+')',cal:Math.round(food.cal*r),p:rf(food.p*r),c:rf(food.cb*r),f:rf(food.f*r),fb:rf(food.fb*r),
-    vA:rf(food.vA*r),vB:rf(food.vB*r,2),vC:rf(food.vC*r),vD:rf(food.vD*r,2),vB12:rf(food.vB12*r,2)};
+    vA:rf(food.vA*r),vB:rf(food.vB*r,2),vC:rf(food.vC*r),vD:rf(food.vD*r,2),vB12:rf(food.vB12*r,2),
+    na:rf((food.na||0)*r,0),k:rf((food.k||0)*r,0),ca:rf((food.ca||0)*r,0),fe:rf((food.fe||0)*r,2)};
 }
 function allowed(food){ return true; }
 // ── SMART TIME-AWARE RECOMMENDATIONS ────────────────────────────────────────
@@ -747,7 +784,6 @@ function launch(){
   document.getElementById('hav').textContent=fn[0].toUpperCase();
   document.getElementById('hd').textContent=new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'short'});
   document.getElementById('dbd').innerHTML=`<div class="dbd">${DI[prof.diet||'veg']} ${DL[prof.diet||'veg']}</div>`;
-  const k=getKey();if(k)document.getElementById('gk').value=k;
   ssc('home');renderHome();
 }
 
@@ -861,7 +897,7 @@ function renderHome(){
 
 // ── LOG ──
 function openLog(mealKey){
-  curM=mealKey;selF=null;aiIt=[];qM='g';
+  curM=mealKey;selF=null;aiIt=[];aiMatch=null;qM='g';
   document.getElementById('lt').innerHTML='Log '+ML[mealKey].toLowerCase()+' <span>AI scan · search · manual</span>';
   document.getElementById('lb').textContent=ME[mealKey]+' '+ML[mealKey];
   document.getElementById('fsi').value='';document.getElementById('sres').innerHTML='';
@@ -871,7 +907,6 @@ function openLog(mealKey){
   document.getElementById('ars').style.display='none';
   ['mn','mc','mp','mca','mf2','mfb','mq'].forEach(id=>document.getElementById(id).value='');
   flt='all';document.querySelectorAll('.ff').forEach(b=>b.classList.remove('active'));document.querySelector('.ff').classList.add('active');
-  const k=getKey();if(k)document.getElementById('gk').value=k;
   // Hide any leftover banner from previous session
   const b=document.getElementById('logged-banner');if(b)b.style.display='none';
   ssc('log');
@@ -940,7 +975,8 @@ function confAdd(){
   const g=selF.pcs&&qM==='pcs'?val*(selF.gpp||100):val;const r=g/100;
   meals[curM].push({name:selF.n+'('+(selF.pcs&&qM==='pcs'?val+'pcs':g+'g')+')',
     cal:Math.round(selF.cal*r),p:rf(selF.p*r),c:rf(selF.cb*r),f:rf(selF.f*r),fb:rf(selF.fb*r),
-    vA:rf(selF.vA*r),vB:rf(selF.vB*r,2),vC:rf(selF.vC*r),vD:rf(selF.vD*r,2),vB12:rf(selF.vB12*r,2)});
+    vA:rf(selF.vA*r),vB:rf(selF.vB*r,2),vC:rf(selF.vC*r),vD:rf(selF.vD*r,2),vB12:rf(selF.vB12*r,2),
+    na:rf((selF.na||0)*r,0),k:rf((selF.k||0)*r,0),ca:rf((selF.ca||0)*r,0),fe:rf((selF.fe||0)*r,2)});
   selF=null;
   document.getElementById('qpk').style.display='none';
   document.getElementById('fsi').value='';
@@ -952,7 +988,7 @@ function confAdd(){
 function addMan(){
   const nm=document.getElementById('mn').value.trim();const cal=parseFloat(document.getElementById('mc').value)||0;
   if(!nm||!cal){toast('Enter food name and calories');return;}
-  meals[curM].push({name:nm,cal,p:parseFloat(document.getElementById('mp').value)||0,c:parseFloat(document.getElementById('mca').value)||0,f:parseFloat(document.getElementById('mf2').value)||0,fb:parseFloat(document.getElementById('mfb').value)||0,vA:0,vB:0,vC:0,vD:0,vB12:0});
+  meals[curM].push({name:nm,cal,p:parseFloat(document.getElementById('mp').value)||0,c:parseFloat(document.getElementById('mca').value)||0,f:parseFloat(document.getElementById('mf2').value)||0,fb:parseFloat(document.getElementById('mfb').value)||0,vA:0,vB:0,vC:0,vD:0,vB12:0,na:0,k:0,ca:0,fe:0});
   // Clear manual fields but stay on screen
   ['mn','mc','mp','mca','mf2','mfb','mq'].forEach(id=>document.getElementById(id).value='');
   save();
@@ -980,11 +1016,12 @@ function showLoggedBanner(mealLabel){
 function tCup(i){const wg=tgt.wat||2500;const fc=Math.round((wml||0)/250);wml=i<fc?Math.max(0,i*250):Math.min(wg,(i+1)*250);save();renderHome();}
 function addW(){const v=parseInt(document.getElementById('wi').value)||250;wml=Math.min((tgt.wat||2500)+500,(wml||0)+v);document.getElementById('wi').value='';save();renderHome();toast('Added '+v+'ml');}
 
-// ── LOGMEAL AI FOOD DETECTION ──────────────────────────────────────────────
-// LogMeal API: https://api.logmeal.es/v2
-// Endpoint: POST /image/segmentation/complete  → recognises dishes + returns nutritional info
-// Auth: Bearer token in Authorization header
-// Free tier: 200 scans/month — sign up at logmeal.com/api
+// ── ON-DEVICE AI FOOD DETECTION (TensorFlow.js MobileNet, no API key) ───────
+// Runs entirely in the browser. Model (~16MB) downloads once then is cached.
+// MobileNet recognises common/Western foods well; for Indian dishes the user
+// confirms the auto-filled search. No key, no sign-up, no network after caching.
+let _mnModel=null,_mnLoading=false;
+
 function tCam(){const inp=document.getElementById('pi');inp.setAttribute('capture','environment');inp.click();}
 function tGal(){const inp=document.getElementById('pi');inp.removeAttribute('capture');inp.click();}
 
@@ -992,125 +1029,102 @@ function handlePhoto(ev){
   const file=ev.target.files[0];if(!file)return;
   const reader=new FileReader();
   reader.onload=e=>{
-    document.getElementById('ppv').src=e.target.result;
+    const img=document.getElementById('ppv');
+    img.src=e.target.result;
     document.getElementById('ppw').style.display='block';
-    scanWithLogMeal(file);
+    img.onload=()=>scanWithAI();
   };
   reader.readAsDataURL(file);ev.target.value='';
 }
 
-async function scanWithLogMeal(file){
-  const key=getKey();
-  if(!key){toast('Enter your LogMeal API token first');return;}
+async function loadModel(){
+  if(_mnModel)return _mnModel;
+  if(typeof mobilenet==='undefined'||typeof tf==='undefined')
+    throw new Error('AI model library not loaded. Check your internet connection and refresh.');
+  _mnModel=await mobilenet.load({version:2,alpha:1.0});
+  return _mnModel;
+}
+
+// Map a detected ImageNet label to a food in the database via keyword match
+function matchFood(label){
+  const words=label.toLowerCase().split(/[\s,]+/).filter(w=>w.length>2);
+  let best=null,bestScore=0;
+  for(const food of FDB){
+    const fn=food.n.toLowerCase();
+    let score=0;
+    for(const w of words){
+      if(fn===w)score+=100;
+      else if(fn.includes(w))score+=40;
+      else if(w.includes(fn.split(' ')[0]))score+=20;
+    }
+    if(score>bestScore){bestScore=score;best=food;}
+  }
+  return bestScore>=20?best:null;
+}
+
+async function scanWithAI(){
   const as=document.getElementById('ast');const ar=document.getElementById('ars');
   as.style.display='block';ar.style.display='none';
-  as.innerHTML='<div class="scan"><div class="spin"></div>LogMeal AI is scanning your meal…</div>';
-
+  as.innerHTML='<div class="scan"><div class="spin"></div>Loading AI model &amp; analysing your meal…</div>';
   try{
-    // Step 1: Upload image for food recognition (segmentation/complete)
-    const formData=new FormData();
-    formData.append('image',file);
-
-    const recResp=await fetch('https://api.logmeal.es/v2/image/segmentation/complete',{
-      method:'POST',
-      headers:{'Authorization':'Bearer '+key},
-      body:formData
-    });
-
-    if(!recResp.ok){
-      const errTxt=await recResp.text();
-      throw new Error(recResp.status===401?'Invalid API token. Check your LogMeal token.':`Recognition failed (${recResp.status}). ${errTxt.slice(0,100)}`);
-    }
-
-    const recData=await recResp.json();
-    const imageId=recData.imageId||recData.image_id;
-    const foodGroups=recData.foodGroups||recData.food_groups||[];
-
-    if(!imageId){throw new Error('No food detected in the image. Try a clearer photo.');}
-
-    // Step 2: Get nutritional info for the detected image
-    as.innerHTML='<div class="scan"><div class="spin"></div>Getting nutritional information…</div>';
-
-    const nutResp=await fetch('https://api.logmeal.es/v2/nutrition/recipe/nutritionalInfo',{
-      method:'POST',
-      headers:{'Authorization':'Bearer '+key,'Content-Type':'application/json'},
-      body:JSON.stringify({imageId})
-    });
-
-    let nutData={};
-    if(nutResp.ok) nutData=await nutResp.json();
-
-    // Build detected items list from recognition + nutrition data
-    const detected=[];
-    const dishes=recData.dishes||recData.food_name||[];
-    const dishList=Array.isArray(dishes)?dishes:[{name:dishes,prob:1}];
-
-    // Extract nutritional values from response
-    const nutr=nutData.nutritional_info||nutData.nutritionalInfo||{};
-    const totalCal=nutr.calories||nutr.energy||0;
-    const totalPro=nutr.proteins||nutr.protein||0;
-    const totalCarb=nutr.carbohydrates||nutr.carbs||0;
-    const totalFat=nutr.fat||nutr.fats||0;
-    const totalFib=nutr.fiber||nutr.dietary_fiber||0;
-
-    // If multiple dishes detected, split nutrition proportionally
-    if(dishList.length>0){
-      const n=dishList.length;
-      dishList.forEach((dish,i)=>{
-        const name=dish.name||dish.dish_name||'Food item '+(i+1);
-        // Use fraction of total nutrition per dish (equal split if no per-dish data)
-        detected.push({
-          name:name,
-          grams:Math.round((nutr.weight||200)/n),
-          cal:Math.round(totalCal/n),
-          protein:rf(totalPro/n),
-          carbs:rf(totalCarb/n),
-          fat:rf(totalFat/n),
-          fiber:rf(totalFib/n)
-        });
-      });
-    }
-
-    as.innerHTML='';
-    if(!detected.length){
-      ar.style.display='block';
-      ar.innerHTML='<div class="aic"><div class="ait" style="color:rgba(255,255,255,.7)">⚠️ No food detected. Try a clearer, well-lit photo with the food centred.</div></div>';
+    const model=await loadModel();
+    const img=document.getElementById('ppv');
+    const preds=await model.classify(img,5);
+    as.innerHTML='';ar.style.display='block';
+    if(!preds||!preds.length){
+      ar.innerHTML='<div class="aic"><div class="ait" style="color:rgba(255,255,255,.7)">⚠️ Could not identify the food. Use the search below.</div></div>';
       return;
     }
-
-    aiIt=detected;ar.style.display='block';
-    const totCal=detected.reduce((a,f)=>a+(f.cal||0),0);
-    ar.innerHTML=`<div class="aic">
-      <div class="ait">✅ Detected ${detected.length} item(s) — ~${Math.round(totCal)} kcal total</div>
-      ${detected.map(f=>`<div class="aii"><span class="ain">${f.name} (~${f.grams}g)</span><span class="aiv">${Math.round(f.cal||0)} kcal</span></div>`).join('')}
-      <button class="aab" onclick="addAI()">✅ Add all to ${ML[curM]}</button>
-    </div>`;
-
+    // Try to match top predictions to the food database
+    let matched=null,matchedLabel='';
+    for(const p of preds){
+      const m=matchFood(p.className);
+      if(m){matched=m;matchedLabel=p.className.split(',')[0];break;}
+    }
+    const top=preds[0].className.split(',')[0];
+    if(matched){
+      // Pre-fill the search with the matched food so user confirms quantity
+      aiMatch=matched;
+      ar.innerHTML=`<div class="aic">
+        <div class="ait">✅ Detected: <b>${top}</b></div>
+        <div style="font-size:12px;color:rgba(255,255,255,.7);margin:6px 0 10px">Matched to <b>${matched.n}</b> (${matched.cal} kcal/100g). Tap to add, then set the quantity.</div>
+        <button class="aab" onclick="useAIMatch()">➕ Use ${matched.n}</button>
+      </div>`;
+    }else{
+      // No DB match — show the label and push it into the search box
+      document.getElementById('fsi').value=top;
+      onSrch();
+      ar.innerHTML=`<div class="aic">
+        <div class="ait">🔍 Detected: <b>${top}</b></div>
+        <div style="font-size:12px;color:rgba(255,255,255,.7);margin-top:6px">No exact database match (common for Indian dishes). I've put "${top}" in the search below — pick the closest item, or refine the search.</div>
+      </div>`;
+    }
   }catch(err){
     as.innerHTML='';ar.style.display='block';
     ar.innerHTML=`<div class="aic"><div class="ait" style="color:rgba(255,255,255,.7)">⚠️ ${err.message||'Scan failed'}. Use the food search or manual entry below.</div></div>`;
   }
 }
 
-function addAI(){
-  if(!aiIt.length)return;
-  aiIt.forEach(f=>meals[curM].push({
-    name:f.name+'(~'+(f.grams||100)+'g)',
-    cal:Math.round(f.cal||0),p:rf(f.protein||0),c:rf(f.carbs||0),
-    f:rf(f.fat||0),fb:rf(f.fiber||0),vA:0,vB:0,vC:0,vD:0,vB12:0
-  }));
-  save();
-  aiIt=[];
-  document.getElementById('ars').style.display='none';
-  document.getElementById('ppw').style.display='none';
-  showLoggedBanner(ML[curM]);
+// When user confirms the AI-matched food, load it into the quantity picker
+function useAIMatch(){
+  if(!aiMatch)return;
+  const idx=FDB.indexOf(aiMatch);
+  if(idx>=0){
+    srl=[aiMatch];
+    selFd(0);
+    document.getElementById('ars').style.display='none';
+    document.getElementById('ppw').style.display='none';
+  }
 }
 
 // ── VITAMINS ──
 function renderVit(){
   const tot=getTot();
   const vits=[{i:'🥕',n:'Vitamin A',s:'Vision & immunity',g:rf(tot.vA,0),t:tgt.vA,u:'mcg'},{i:'⚡',n:'Vitamin B1',s:'Energy metabolism',g:rf(tot.vB,2),t:tgt.vB,u:'mg'},{i:'🍊',n:'Vitamin C',s:'Immune & skin',g:rf(tot.vC,0),t:tgt.vC,u:'mg'},{i:'🌞',n:'Vitamin D',s:'Bone health',g:rf(tot.vD,1),t:tgt.vD,u:'mcg'},{i:'🥩',n:'Vitamin B12',s:'Nerve & blood',g:rf(tot.vB12,1),t:tgt.vB12,u:'mcg'},{i:'🥦',n:'Fiber',s:'Digestive health',g:rf(tot.fb,1),t:tgt.fib,u:'g'}];
-  document.getElementById('vlist').innerHTML=vits.map(v=>{const pct=Math.min(100,Math.round((v.g/v.t)*100));const col=pct>=80?'#1D9E75':pct>=40?'#EF9F27':'#E24B4A';return`<div class="vr"><div class="vi">${v.i}</div><div class="vinf"><div class="vn">${v.n}</div><div class="vs">${v.s}</div><div class="vp"><div class="vb"><div class="vbf" style="width:${pct}%;background:${col}"></div></div><div class="vpc">${pct}%</div></div></div><div class="vr2"><div class="vt">${v.t}${v.u}</div><div class="vc">${v.g} eaten</div></div></div>`;}).join('');
+  const mins=[{i:'🧂',n:'Sodium',s:'Fluid balance (limit)',g:rf(tot.na,0),t:tgt.na||2000,u:'mg'},{i:'🍌',n:'Potassium',s:'Heart & muscle function',g:rf(tot.k,0),t:tgt.k||3500,u:'mg'},{i:'🦴',n:'Calcium',s:'Bones & teeth',g:rf(tot.ca,0),t:tgt.ca||1000,u:'mg'},{i:'🩸',n:'Iron',s:'Blood & oxygen transport',g:rf(tot.fe,1),t:tgt.fe||17,u:'mg'}];
+  const rowHtml=v=>{const pct=Math.min(100,Math.round((v.g/v.t)*100));const col=pct>=80?'#1D9E75':pct>=40?'#EF9F27':'#E24B4A';return`<div class="vr"><div class="vi">${v.i}</div><div class="vinf"><div class="vn">${v.n}</div><div class="vs">${v.s}</div><div class="vp"><div class="vb"><div class="vbf" style="width:${pct}%;background:${col}"></div></div><div class="vpc">${pct}%</div></div></div><div class="vr2"><div class="vt">${v.t}${v.u}</div><div class="vc">${v.g} eaten</div></div></div>`;};
+  const hdr=t=>`<div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--c4);margin:6px 0 4px;padding-top:8px">${t}</div>`;
+  document.getElementById('vlist').innerHTML=hdr('💊 Vitamins')+vits.map(rowHtml).join('')+hdr('⛏️ Minerals')+mins.map(rowHtml).join('');
 }
 
 // ── TIMEZONE ──────────────────────────────────────────────────────────────
@@ -1253,6 +1267,83 @@ function renderHistory(){
     }).join('')}`;
 }
 
+// ── NUTRIENT INTAKE GRAPHS (SVG, no library) ───────────────────────────────
+// Recomputes any nutrient from saved daily meals (last 14 days) and draws an
+// SVG line chart with a dashed target line. Works for macros, vitamins & minerals.
+const NUTR_META={
+  cal:{label:'Calories',unit:'kcal',tkey:'cal'}, p:{label:'Protein',unit:'g',tkey:'pro'},
+  c:{label:'Carbs',unit:'g',tkey:'crb'},        f:{label:'Fat',unit:'g',tkey:'fat'},
+  fb:{label:'Fiber',unit:'g',tkey:'fib'},       vA:{label:'Vitamin A',unit:'mcg',tkey:'vA'},
+  vB:{label:'Vitamin B1',unit:'mg',tkey:'vB'},  vC:{label:'Vitamin C',unit:'mg',tkey:'vC'},
+  vD:{label:'Vitamin D',unit:'mcg',tkey:'vD'},  vB12:{label:'Vitamin B12',unit:'mcg',tkey:'vB12'},
+  na:{label:'Sodium',unit:'mg',tkey:'na'},      k:{label:'Potassium',unit:'mg',tkey:'k'},
+  ca:{label:'Calcium',unit:'mg',tkey:'ca'},     fe:{label:'Iron',unit:'mg',tkey:'fe'}
+};
+function renderGraph(){
+  const body=document.getElementById('graph-body');
+  if(!body)return;
+  const sel=document.getElementById('graph-sel');
+  const key=sel?sel.value:'cal';
+  const meta=NUTR_META[key]||NUTR_META.cal;
+  const hist=loadHistory();
+  // Last 14 days, oldest→newest
+  const dates=Object.keys(hist).sort().slice(-14);
+  if(dates.length<1){
+    body.innerHTML='<div style="font-size:13px;color:var(--c4);text-align:center;padding:16px 0">No history yet. Log meals and your daily trends will appear here.</div>';
+    return;
+  }
+  // Build data points: recompute nutrient from each day's saved meals
+  const pts=dates.map(d=>{
+    const day=hist[d];
+    let val;
+    if(day&&day.meals){const t=totalsFrom(day.meals);val=t[key]!==undefined?t[key]:0;}
+    else if(day){val=key==='cal'?day.cal:key==='p'?day.pro:key==='c'?day.carb:key==='f'?day.fat:0;}
+    else val=0;
+    return{date:d,val:Math.round(val*10)/10};
+  });
+  const target=(tgt&&tgt[meta.tkey])||0;
+  const maxVal=Math.max(target,...pts.map(p=>p.val),1)*1.15;
+  // SVG dimensions
+  const W=320,H=150,pad={l:38,r:10,t:12,b:24};
+  const cw=W-pad.l-pad.r,ch=H-pad.t-pad.b;
+  const x=i=>pad.l+(pts.length===1?cw/2:(cw*i)/(pts.length-1));
+  const y=v=>pad.t+ch-(v/maxVal)*ch;
+  // Line path
+  const linePath=pts.map((p,i)=>`${i===0?'M':'L'}${x(i).toFixed(1)},${y(p.val).toFixed(1)}`).join(' ');
+  // Area path
+  const areaPath=linePath+` L${x(pts.length-1).toFixed(1)},${(pad.t+ch).toFixed(1)} L${x(0).toFixed(1)},${(pad.t+ch).toFixed(1)} Z`;
+  // Target line
+  const ty=y(target);
+  const avg=Math.round(pts.reduce((a,p)=>a+p.val,0)/pts.length);
+  // Y-axis labels (0, mid, max)
+  const yl=[0,maxVal/2,maxVal].map(v=>`<text x="${pad.l-6}" y="${(y(v)+3).toFixed(1)}" font-size="9" fill="#9BA8A3" text-anchor="end">${Math.round(v)}</text>`).join('');
+  // X labels (first, middle, last) as day/month
+  const xlIdx=pts.length<=1?[0]:[0,Math.floor((pts.length-1)/2),pts.length-1];
+  const xl=xlIdx.map(i=>{const dd=pts[i].date.slice(8)+'/'+pts[i].date.slice(5,7);return`<text x="${x(i).toFixed(1)}" y="${H-8}" font-size="9" fill="#9BA8A3" text-anchor="middle">${dd}</text>`;}).join('');
+  // Dots
+  const dots=pts.map((p,i)=>`<circle cx="${x(i).toFixed(1)}" cy="${y(p.val).toFixed(1)}" r="3" fill="#1D9E75"/>`).join('');
+  const targetLine=target>0?`<line x1="${pad.l}" y1="${ty.toFixed(1)}" x2="${W-pad.r}" y2="${ty.toFixed(1)}" stroke="#E24B4A" stroke-width="1.2" stroke-dasharray="4 3"/><text x="${W-pad.r}" y="${(ty-4).toFixed(1)}" font-size="8" fill="#E24B4A" text-anchor="end">target ${target}</text>`:'';
+  body.innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
+      <div style="font-size:13px;font-weight:700;color:var(--c9)">${meta.label}</div>
+      <div style="font-size:11px;color:var(--c4)">14-day avg: <b style="color:var(--gd)">${avg} ${meta.unit}</b></div>
+    </div>
+    <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">
+      <defs><linearGradient id="garea" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#1D9E75" stop-opacity="0.25"/>
+        <stop offset="100%" stop-color="#1D9E75" stop-opacity="0"/>
+      </linearGradient></defs>
+      <line x1="${pad.l}" y1="${pad.t}" x2="${pad.l}" y2="${pad.t+ch}" stroke="#E2E6E4" stroke-width="1"/>
+      <line x1="${pad.l}" y1="${pad.t+ch}" x2="${W-pad.r}" y2="${pad.t+ch}" stroke="#E2E6E4" stroke-width="1"/>
+      ${yl}
+      <path d="${areaPath}" fill="url(#garea)"/>
+      <path d="${linePath}" fill="none" stroke="#1D9E75" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+      ${dots}
+      ${targetLine}
+      ${xl}
+    </svg>`;
+}
+
 // ── PROFILE RENDER ─────────────────────────────────────────────────────────
 function renderProf(){
   const fn=prof.name.split(' ')[0];
@@ -1280,6 +1371,7 @@ function renderProf(){
   if(tzSel) tzSel.value=String(getTZOffset());
   renderWeightHistory();
   renderHistory();
+  renderGraph();
 }
 
 function editP(){
