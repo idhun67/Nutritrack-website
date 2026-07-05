@@ -317,10 +317,16 @@
   <div class="tb"><button class="tbb" onclick="closeLog()">← Back</button><div class="tbt" id="lt">Log meal <span>AI scan · search · manual</span></div></div>
   <div class="lsc">
     <div class="lbdg" id="lb">🍳 Breakfast</div>
-    <!-- ON-DEVICE AI PHOTO SCAN (no API key) -->
+    <!-- GEMINI AI PHOTO SCAN — multi-food detection -->
     <div class="psec">
-      <div class="pt">📸 AI Photo Detection <span style="font-size:10px;background:rgba(255,255,255,.15);padding:2px 7px;border-radius:var(--rfl);margin-left:6px">On-device · No key</span></div>
-      <div class="ps">Snap your meal — AI runs on your device to identify the food, then matches it to the database. No API key, no sign-up. Works best for common &amp; Western foods; for Indian dishes the search below is more precise.</div>
+      <div class="pt">📸 AI Photo Detection <span style="font-size:10px;background:rgba(255,255,255,.15);padding:2px 7px;border-radius:var(--rfl);margin-left:6px">Gemini AI · Multi-food</span></div>
+      <div class="ps">Snap your plate — Google Gemini AI detects <b>every food item</b> on it (including Indian dishes), estimates portions, and calculates full nutrition automatically.</div>
+      <div class="akin">One-time setup: get a <b>free</b> API key at <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a> → "Create API key". Free tier gives ~1,500 scans/day. No credit card needed.</div>
+      <div class="akr" id="akrow">
+        <input type="password" class="aki" id="gk" placeholder="Paste your free Gemini API key">
+        <button class="aks" onclick="saveKey()">Save</button>
+      </div>
+      <div id="keyok" style="display:none;font-size:12px;color:#6EDDB8;font-weight:600;margin-bottom:10px">✓ API key saved <button onclick="changeKey()" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:11px;text-decoration:underline;cursor:pointer;font-family:var(--fb)">change</button></div>
       <div class="pbr">
         <button class="pb2 pb2p" onclick="tCam()">📷 Camera</button>
         <button class="pb2 pb2s" onclick="tGal()">🖼️ Upload</button>
@@ -505,8 +511,6 @@
 </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js"></script>
 <script src="foods.js"></script>
 <script>
 // Foods loaded from foods.js (2000+ items)
@@ -970,6 +974,7 @@ function renderHome(){
 // ── LOG ──
 function openLog(mealKey){
   curM=mealKey;selF=null;aiIt=[];aiMatch=null;qM='g';
+  updateKeyUI();
   document.getElementById('lt').innerHTML='Log '+ML[mealKey].toLowerCase()+' <span>AI scan · search · manual</span>';
   document.getElementById('lb').textContent=ME[mealKey]+' '+ML[mealKey];
   document.getElementById('fsi').value='';document.getElementById('sres').innerHTML='';
@@ -1088,11 +1093,22 @@ function showLoggedBanner(mealLabel){
 function tCup(i){const wg=tgt.wat||2500;const fc=Math.round((wml||0)/250);wml=i<fc?Math.max(0,i*250):Math.min(wg,(i+1)*250);save();renderHome();}
 function addW(){const v=parseInt(document.getElementById('wi').value)||250;wml=Math.min((tgt.wat||2500)+500,(wml||0)+v);document.getElementById('wi').value='';save();renderHome();toast('Added '+v+'ml');}
 
-// ── ON-DEVICE AI FOOD DETECTION (TensorFlow.js MobileNet, no API key) ───────
-// Runs entirely in the browser. Model (~16MB) downloads once then is cached.
-// MobileNet recognises common/Western foods well; for Indian dishes the user
-// confirms the auto-filled search. No key, no sign-up, no network after caching.
-let _mnModel=null,_mnLoading=false;
+// ── GEMINI AI MULTI-FOOD DETECTION ──────────────────────────────────────────
+// Google Gemini 2.0 Flash — detects MULTIPLE foods per photo, knows Indian
+// dishes, estimates portion sizes and full nutrition (macros+vitamins+minerals).
+// Free API key from aistudio.google.com/apikey (~1,500 scans/day, no card).
+// Key is stored only in this browser's localStorage.
+function saveKey(){const k=document.getElementById('gk').value.trim();if(k){localStorage.setItem('gemini_key',k);toast('API key saved!');updateKeyUI();}else toast('Paste a valid key first');}
+function getKey(){return localStorage.getItem('gemini_key')||'';}
+function changeKey(){localStorage.removeItem('gemini_key');updateKeyUI();}
+function updateKeyUI(){
+  const has=!!getKey();
+  const row=document.getElementById('akrow'),ok=document.getElementById('keyok');
+  const info=document.querySelector('.akin');
+  if(row)row.style.display=has?'none':'flex';
+  if(ok)ok.style.display=has?'block':'none';
+  if(info)info.style.display=has?'none':'block';
+}
 
 function tCam(){const inp=document.getElementById('pi');inp.setAttribute('capture','environment');inp.click();}
 function tGal(){const inp=document.getElementById('pi');inp.removeAttribute('capture');inp.click();}
@@ -1104,89 +1120,109 @@ function handlePhoto(ev){
     const img=document.getElementById('ppv');
     img.src=e.target.result;
     document.getElementById('ppw').style.display='block';
-    img.onload=()=>scanWithAI();
+    img.onload=()=>scanWithGemini();
   };
   reader.readAsDataURL(file);ev.target.value='';
 }
 
-async function loadModel(){
-  if(_mnModel)return _mnModel;
-  if(typeof mobilenet==='undefined'||typeof tf==='undefined')
-    throw new Error('AI model library not loaded. Check your internet connection and refresh.');
-  _mnModel=await mobilenet.load({version:2,alpha:1.0});
-  return _mnModel;
+// Downscale photo to max 800px and return base64 JPEG (smaller = faster upload)
+function photoToB64(){
+  const img=document.getElementById('ppv');
+  const cv=document.createElement('canvas');
+  const maxD=800;
+  let w=img.naturalWidth,h=img.naturalHeight;
+  if(w>h&&w>maxD){h=Math.round(h*maxD/w);w=maxD;}
+  else if(h>=w&&h>maxD){w=Math.round(w*maxD/h);h=maxD;}
+  cv.width=w;cv.height=h;
+  cv.getContext('2d').drawImage(img,0,0,w,h);
+  return cv.toDataURL('image/jpeg',0.85).split(',')[1];
 }
 
-// Map a detected ImageNet label to a food in the database via keyword match
-function matchFood(label){
-  const words=label.toLowerCase().split(/[\s,]+/).filter(w=>w.length>2);
-  let best=null,bestScore=0;
-  for(const food of FDB){
-    const fn=food.n.toLowerCase();
-    let score=0;
-    for(const w of words){
-      if(fn===w)score+=100;
-      else if(fn.includes(w))score+=40;
-      else if(w.includes(fn.split(' ')[0]))score+=20;
-    }
-    if(score>bestScore){bestScore=score;best=food;}
-  }
-  return bestScore>=20?best:null;
-}
+let aiFoods=[]; // detected foods from last scan
 
-async function scanWithAI(){
+async function scanWithGemini(){
   const as=document.getElementById('ast');const ar=document.getElementById('ars');
+  const key=getKey();
+  if(!key){
+    ar.style.display='block';as.style.display='none';
+    ar.innerHTML='<div class="aic"><div class="ait" style="color:rgba(255,255,255,.8)">🔑 Add your free Gemini API key above first (takes 30 seconds), then re-upload the photo.</div></div>';
+    return;
+  }
   as.style.display='block';ar.style.display='none';
-  as.innerHTML='<div class="scan"><div class="spin"></div>Loading AI model &amp; analysing your meal…</div>';
+  as.innerHTML='<div class="scan"><div class="spin"></div>Gemini AI is identifying every food on your plate…</div>';
   try{
-    const model=await loadModel();
-    const img=document.getElementById('ppv');
-    const preds=await model.classify(img,5);
-    as.innerHTML='';ar.style.display='block';
-    if(!preds||!preds.length){
-      ar.innerHTML='<div class="aic"><div class="ait" style="color:rgba(255,255,255,.7)">⚠️ Could not identify the food. Use the search below.</div></div>';
+    const b64=photoToB64();
+    const prompt='You are a nutrition analysis expert familiar with Indian and world cuisine. Identify EVERY distinct food item visible in this photo. For EACH item, estimate the visible portion in grams and its nutrition for that portion. Respond with ONLY a JSON array, no markdown, no backticks, no explanation. Each element: {"name":string,"grams":number,"cal":number,"p":number(protein g),"cb":number(carbs g),"f":number(fat g),"fb":number(fiber g),"vA":number(vitamin A mcg),"vB":number(vitamin B1 mg),"vC":number(vitamin C mg),"vD":number(vitamin D mcg),"vB12":number(vitamin B12 mcg),"na":number(sodium mg),"k":number(potassium mg),"ca":number(calcium mg),"fe":number(iron mg)}. If nothing edible is visible return [].';
+    const resp=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key='+encodeURIComponent(key),{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        contents:[{parts:[
+          {text:prompt},
+          {inline_data:{mime_type:'image/jpeg',data:b64}}
+        ]}],
+        generationConfig:{temperature:0.2,maxOutputTokens:2048}
+      })
+    });
+    if(!resp.ok){
+      const et=await resp.text();
+      if(resp.status===400&&/API key/i.test(et))throw new Error('Invalid API key. Tap "change" above and paste it again.');
+      if(resp.status===429)throw new Error('Daily free limit reached. Try again tomorrow or use the search below.');
+      throw new Error('Scan failed ('+resp.status+'). Check your internet and try again.');
+    }
+    const data=await resp.json();
+    let txt=((data.candidates||[])[0]||{}).content;
+    txt=txt&&txt.parts&&txt.parts.map(p=>p.text||'').join('')||'';
+    txt=txt.replace(/```json|```/g,'').trim();
+    const items=JSON.parse(txt);
+    as.style.display='none';ar.style.display='block';
+    if(!Array.isArray(items)||!items.length){
+      ar.innerHTML='<div class="aic"><div class="ait" style="color:rgba(255,255,255,.7)">⚠️ No food detected in the photo. Try a clearer shot, or use the search below.</div></div>';
       return;
     }
-    // Try to match top predictions to the food database
-    let matched=null,matchedLabel='';
-    for(const p of preds){
-      const m=matchFood(p.className);
-      if(m){matched=m;matchedLabel=p.className.split(',')[0];break;}
-    }
-    const top=preds[0].className.split(',')[0];
-    if(matched){
-      // Pre-fill the search with the matched food so user confirms quantity
-      aiMatch=matched;
-      ar.innerHTML=`<div class="aic">
-        <div class="ait">✅ Detected: <b>${top}</b></div>
-        <div style="font-size:12px;color:rgba(255,255,255,.7);margin:6px 0 10px">Matched to <b>${matched.n}</b> (${matched.cal} kcal/100g). Tap to add, then set the quantity.</div>
-        <button class="aab" onclick="useAIMatch()">➕ Use ${matched.n}</button>
-      </div>`;
-    }else{
-      // No DB match — show the label and push it into the search box
-      document.getElementById('fsi').value=top;
-      onSrch();
-      ar.innerHTML=`<div class="aic">
-        <div class="ait">🔍 Detected: <b>${top}</b></div>
-        <div style="font-size:12px;color:rgba(255,255,255,.7);margin-top:6px">No exact database match (common for Indian dishes). I've put "${top}" in the search below — pick the closest item, or refine the search.</div>
-      </div>`;
-    }
+    aiFoods=items;
+    const totalCal=Math.round(items.reduce((a,x)=>a+(x.cal||0),0));
+    ar.innerHTML=`<div class="aic">
+      <div class="ait">✅ Detected ${items.length} item${items.length>1?'s':''} · ~${totalCal} kcal total</div>
+      ${items.map((x,i)=>`
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid rgba(255,255,255,.12)">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:600;color:#fff">${x.name}</div>
+            <div style="font-size:11px;color:rgba(255,255,255,.6)">~${Math.round(x.grams||0)}g · P:${rf(x.p)}g C:${rf(x.cb)}g F:${rf(x.f)}g</div>
+          </div>
+          <div style="font-size:12px;font-weight:700;color:#6EDDB8;flex-shrink:0">${Math.round(x.cal||0)} kcal</div>
+          <button onclick="addAIItem(${i},this)" style="background:rgba(110,221,184,.2);border:1px solid rgba(110,221,184,.5);color:#6EDDB8;border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--fb);flex-shrink:0">+ Add</button>
+        </div>`).join('')}
+      <button class="aab" style="margin-top:10px" onclick="addAllAI()">➕ Add all ${items.length} to ${ML[curM]}</button>
+    </div>`;
   }catch(err){
-    as.innerHTML='';ar.style.display='block';
+    as.style.display='none';ar.style.display='block';
     ar.innerHTML=`<div class="aic"><div class="ait" style="color:rgba(255,255,255,.7)">⚠️ ${err.message||'Scan failed'}. Use the food search or manual entry below.</div></div>`;
   }
 }
 
-// When user confirms the AI-matched food, load it into the quantity picker
-function useAIMatch(){
-  if(!aiMatch)return;
-  const idx=FDB.indexOf(aiMatch);
-  if(idx>=0){
-    srl=[aiMatch];
-    selFd(0);
-    document.getElementById('ars').style.display='none';
-    document.getElementById('ppw').style.display='none';
-  }
+function aiToMealItem(x){
+  return{name:(x.name||'Food')+'('+Math.round(x.grams||0)+'g)',
+    cal:Math.round(x.cal||0),p:rf(x.p),c:rf(x.cb),f:rf(x.f),fb:rf(x.fb),
+    vA:rf(x.vA),vB:rf(x.vB,2),vC:rf(x.vC),vD:rf(x.vD,2),vB12:rf(x.vB12,2),
+    na:rf(x.na,0),k:rf(x.k,0),ca:rf(x.ca,0),fe:rf(x.fe,2)};
+}
+function addAIItem(i,btn){
+  const x=aiFoods[i];if(!x)return;
+  meals[curM].push(aiToMealItem(x));
+  save();
+  if(btn){btn.textContent='✓ Added';btn.disabled=true;btn.style.opacity='.5';}
+  showLoggedBanner(ML[curM]);
+}
+function addAllAI(){
+  if(!aiFoods.length)return;
+  aiFoods.forEach(x=>meals[curM].push(aiToMealItem(x)));
+  save();
+  document.getElementById('ars').style.display='none';
+  document.getElementById('ppw').style.display='none';
+  toast(aiFoods.length+' items added');
+  showLoggedBanner(ML[curM]);
+  aiFoods=[];
 }
 
 // ── VITAMINS ──
