@@ -1586,9 +1586,39 @@ function renderHistory(){
       if(!items.length)return'';
       return`<div style="margin-bottom:10px">
         <div style="font-size:12px;font-weight:700;color:${MC2[key]};margin-bottom:4px">${ML2[key]}</div>
-        ${items.map(it=>`<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--c6);padding:3px 0;border-top:1px solid var(--c1)"><span>${it.name}</span><span style="font-weight:600;color:var(--c9)">${Math.round(it.cal)} kcal</span></div>`).join('')}
+        ${items.map((it,idx)=>`<div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--c6);padding:3px 0;border-top:1px solid var(--c1)"><span style="flex:1;min-width:0">${it.name}</span><span style="font-weight:600;color:var(--c9);flex-shrink:0">${Math.round(it.cal)} kcal</span><button onclick="delHistItem('${dateKey}','${key}',${idx})" style="background:none;border:none;color:var(--rd);font-size:14px;cursor:pointer;padding:2px 6px;flex-shrink:0;font-family:var(--fb)" title="Delete this item">✕</button></div>`).join('')}
       </div>`;
     }).join('')}`;
+}
+
+// Delete a single food item from a past day's history, recomputing that day
+function delHistItem(dateKey,mealKey,idx){
+  // Deleting from TODAY's entry: remove from the live meals too (they mirror
+  // each other via snapshotToday), then save() rebuilds today's history.
+  if(dateKey===todayStr()){
+    if(meals[mealKey]&&meals[mealKey][idx]!==undefined){
+      meals[mealKey].splice(idx,1);
+      save();
+    }
+    toast('Item deleted');
+    renderHistory();renderGraph();
+    return;
+  }
+  const hist=loadHistory();
+  const day=hist[dateKey];
+  if(!day||!day.meals||!Array.isArray(day.meals[mealKey]))return;
+  day.meals[mealKey].splice(idx,1);
+  // If the whole day is now empty, remove the date entirely
+  const empty=['breakfast','lunch','snacks','dinner'].every(k=>!(day.meals[k]||[]).length);
+  if(empty){delete hist[dateKey];}
+  else{
+    const t=totalsFrom(day.meals);
+    day.cal=Math.round(t.cal);day.pro=Math.round(t.p);day.carb=Math.round(t.c);day.fat=Math.round(t.f);
+  }
+  saveHistory(hist);
+  toast('Item deleted');
+  renderHistory();
+  renderGraph();
 }
 
 // ── NUTRIENT INTAKE GRAPHS (SVG, no library) ───────────────────────────────
