@@ -303,6 +303,22 @@
       <div class="wr"><input type="number" class="wi" id="wi" placeholder="250 ml" min="50" max="2000"><button class="wa" onclick="addW()">+ Add</button></div>
     </div>
     <div id="rsec" style="margin-bottom:12px"></div>
+    <!-- Log a meal for a previous day -->
+    <div class="sl">Missed logging?</div>
+    <div class="card" style="margin-bottom:12px">
+      <div style="font-size:13px;font-weight:700;color:var(--c9);margin-bottom:6px">🕓 Add meal to a previous day</div>
+      <div style="font-size:12px;color:var(--c4);margin-bottom:10px">Forgot to log yesterday? Pick the date and meal — it saves straight into your history.</div>
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <input type="date" id="bd-date" style="flex:1;padding:10px 12px;border:1.5px solid var(--c2);border-radius:var(--rsm);font-size:13px;font-family:var(--fb);background:var(--wh);color:var(--c9);outline:none">
+        <select id="bd-slot" style="flex:1;padding:10px 12px;border:1.5px solid var(--c2);border-radius:var(--rsm);font-size:13px;font-family:var(--fb);background:var(--wh);color:var(--c9);outline:none">
+          <option value="breakfast">🌅 Breakfast</option>
+          <option value="lunch">☀️ Lunch</option>
+          <option value="snacks">🍎 Snacks</option>
+          <option value="dinner">🌙 Dinner</option>
+        </select>
+      </div>
+      <button class="btn bp" style="padding:11px" onclick="openBackLog()">➕ Add food to that day</button>
+    </div>
     <div style="text-align:center;padding:16px 0 4px;font-size:11px;color:var(--c4)">AI Nutrition Tracker · by Idhun</div>
   </div>
   <div class="bnav">
@@ -861,6 +877,13 @@ function renderHome(){
     const hd=document.getElementById('hd');
     if(hd)hd.textContent=new Date(Date.now()+getTZOffset()*3600*1000).toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'short',timeZone:'UTC'});
   }
+  // Constrain the "previous day" picker: yesterday back to 30 days ago (user TZ)
+  const bdEl=document.getElementById('bd-date');
+  if(bdEl){
+    const off=getTZOffset()*3600*1000;
+    bdEl.max=new Date(Date.now()+off-86400*1000).toISOString().slice(0,10);
+    bdEl.min=new Date(Date.now()+off-30*86400*1000).toISOString().slice(0,10);
+  }
   const tot=getTot();
   const pct=Math.min(1,tot.cal/tgt.cal);
   document.getElementById('rarc').setAttribute('stroke-dashoffset',Math.round(226*(1-pct)));
@@ -975,8 +998,9 @@ function renderHome(){
 function openLog(mealKey){
   curM=mealKey;selF=null;aiIt=[];aiMatch=null;qM='g';
   updateKeyUI();
-  document.getElementById('lt').innerHTML='Log '+ML[mealKey].toLowerCase()+' <span>AI scan · search · manual</span>';
-  document.getElementById('lb').textContent=ME[mealKey]+' '+ML[mealKey];
+  const dateNote=logDate?' · '+logDate:'';
+  document.getElementById('lt').innerHTML='Log '+ML[mealKey].toLowerCase()+' <span>AI scan · search · manual'+dateNote+'</span>';
+  document.getElementById('lb').textContent=ME[mealKey]+' '+ML[mealKey]+(logDate?' — '+logDate:'');
   document.getElementById('fsi').value='';document.getElementById('sres').innerHTML='';
   document.getElementById('qpk').style.display='none';
   document.getElementById('ppw').style.display='none';
@@ -988,8 +1012,42 @@ function openLog(mealKey){
   const b=document.getElementById('logged-banner');if(b)b.style.display='none';
   ssc('log');
 }
-function closeLog(){ssc('home');renderHome();}
+function closeLog(){logDate=null;ssc('home');renderHome();}
 function delF(k,i){meals[k].splice(i,1);save();renderHome();}
+
+// ── BACKDATE LOGGING (add meals to a previous day) ─────────────────────────
+let logDate=null; // null = logging for today; 'YYYY-MM-DD' = logging into history
+
+function openBackLog(){
+  const dEl=document.getElementById('bd-date');
+  const sEl=document.getElementById('bd-slot');
+  const d=dEl?dEl.value:'';
+  if(!d){toast('Pick a date first');return;}
+  if(d>=todayStr()){toast('Pick a day before today — today logs normally above');return;}
+  // Limit to last 30 days (history retention window)
+  const cutoff=new Date(Date.now()-30*86400*1000).toISOString().slice(0,10);
+  if(d<cutoff){toast('Only the last 30 days can be edited');return;}
+  logDate=d;
+  openLog(sEl?sEl.value:'breakfast');
+}
+
+// Route a finished meal item to today's meals OR a previous day's history
+function pushMealItem(item){
+  if(!logDate){
+    meals[curM].push(item);
+    save();
+    return;
+  }
+  const hist=loadHistory();
+  if(!hist[logDate])hist[logDate]={meals:{breakfast:[],lunch:[],snacks:[],dinner:[]},cal:0,pro:0,carb:0,fat:0};
+  if(!hist[logDate].meals)hist[logDate].meals={breakfast:[],lunch:[],snacks:[],dinner:[]};
+  if(!hist[logDate].meals[curM])hist[logDate].meals[curM]=[];
+  hist[logDate].meals[curM].push(item);
+  const t=totalsFrom(hist[logDate].meals);
+  hist[logDate].cal=Math.round(t.cal);hist[logDate].pro=Math.round(t.p);
+  hist[logDate].carb=Math.round(t.c);hist[logDate].fat=Math.round(t.f);
+  saveHistory(hist);
+}
 
 // ── SEARCH ──
 function setFF(f,el){flt=f;document.querySelectorAll('.ff').forEach(b=>b.classList.remove('active'));el.classList.add('active');onSrch();}
@@ -1050,7 +1108,7 @@ function confAdd(){
   if(!selF)return;
   const val=parseFloat(document.getElementById('qi').value)||(qM==='pcs'?1:100);
   const g=selF.pcs&&qM==='pcs'?val*(selF.gpp||100):val;const r=g/100;
-  meals[curM].push({name:selF.n+'('+(selF.pcs&&qM==='pcs'?val+'pcs':g+'g')+')',
+  pushMealItem({name:selF.n+'('+(selF.pcs&&qM==='pcs'?val+'pcs':g+'g')+')',
     cal:Math.round(selF.cal*r),p:rf(selF.p*r),c:rf(selF.cb*r),f:rf(selF.f*r),fb:rf(selF.fb*r),
     vA:rf(selF.vA*r),vB:rf(selF.vB*r,2),vC:rf(selF.vC*r),vD:rf(selF.vD*r,2),vB12:rf(selF.vB12*r,2),
     na:rf((selF.na||0)*r,0),k:rf((selF.k||0)*r,0),ca:rf((selF.ca||0)*r,0),fe:rf((selF.fe||0)*r,2)});
@@ -1058,24 +1116,26 @@ function confAdd(){
   document.getElementById('qpk').style.display='none';
   document.getElementById('fsi').value='';
   document.getElementById('sres').innerHTML='';
-  save();
   // Show inline confirmation — stay on log screen so user can add more items
   showLoggedBanner(ML[curM]);
 }
 function addMan(){
   const nm=document.getElementById('mn').value.trim();const cal=parseFloat(document.getElementById('mc').value)||0;
   if(!nm||!cal){toast('Enter food name and calories');return;}
-  meals[curM].push({name:nm,cal,p:parseFloat(document.getElementById('mp').value)||0,c:parseFloat(document.getElementById('mca').value)||0,f:parseFloat(document.getElementById('mf2').value)||0,fb:parseFloat(document.getElementById('mfb').value)||0,vA:0,vB:0,vC:0,vD:0,vB12:0,na:0,k:0,ca:0,fe:0});
+  pushMealItem({name:nm,cal,p:parseFloat(document.getElementById('mp').value)||0,c:parseFloat(document.getElementById('mca').value)||0,f:parseFloat(document.getElementById('mf2').value)||0,fb:parseFloat(document.getElementById('mfb').value)||0,vA:0,vB:0,vC:0,vD:0,vB12:0,na:0,k:0,ca:0,fe:0});
   // Clear manual fields but stay on screen
   ['mn','mc','mp','mca','mf2','mfb','mq'].forEach(id=>document.getElementById(id).value='');
-  save();
   showLoggedBanner(ML[curM]);
 }
 
 // Show a non-intrusive green banner in the log screen confirming the item was added
 // without redirecting the user — they can keep adding more items
 function showLoggedBanner(mealLabel){
-  const count=meals[curM].length;
+  let count;
+  if(logDate){
+    const h=loadHistory();
+    count=((h[logDate]||{}).meals||{})[curM]?.length||0;
+  }else count=meals[curM].length;
   let banner=document.getElementById('logged-banner');
   if(!banner){
     banner=document.createElement('div');
@@ -1085,7 +1145,7 @@ function showLoggedBanner(mealLabel){
     const lb=document.getElementById('lb');
     lb.parentNode.insertBefore(banner,lb.nextSibling);
   }
-  banner.innerHTML=`<span>✅ ${count} item${count>1?'s':''} added to ${mealLabel}</span><button onclick="closeLog()" style="background:rgba(255,255,255,.2);border:none;color:#fff;padding:5px 12px;border-radius:var(--rsm);font-size:12px;font-weight:700;cursor:pointer;font-family:var(--fb);">Done ✓</button>`;
+  banner.innerHTML=`<span>✅ ${count} item${count>1?'s':''} added to ${mealLabel}${logDate?' ('+logDate+')':''}</span><button onclick="closeLog()" style="background:rgba(255,255,255,.2);border:none;color:#fff;padding:5px 12px;border-radius:var(--rsm);font-size:12px;font-weight:700;cursor:pointer;font-family:var(--fb);">Done ✓</button>`;
   banner.style.display='flex';
 }
 
@@ -1209,15 +1269,13 @@ function aiToMealItem(x){
 }
 function addAIItem(i,btn){
   const x=aiFoods[i];if(!x)return;
-  meals[curM].push(aiToMealItem(x));
-  save();
+  pushMealItem(aiToMealItem(x));
   if(btn){btn.textContent='✓ Added';btn.disabled=true;btn.style.opacity='.5';}
   showLoggedBanner(ML[curM]);
 }
 function addAllAI(){
   if(!aiFoods.length)return;
-  aiFoods.forEach(x=>meals[curM].push(aiToMealItem(x)));
-  save();
+  aiFoods.forEach(x=>pushMealItem(aiToMealItem(x)));
   document.getElementById('ars').style.display='none';
   document.getElementById('ppw').style.display='none';
   toast(aiFoods.length+' items added');
@@ -1427,10 +1485,23 @@ function renderHistory(){
   if(!day){body.innerHTML='';return;}
   const MC2={breakfast:'#EF9F27',lunch:'#1D9E75',snacks:'#D4537E',dinner:'#7F77DD'};
   const ML2={breakfast:'🌅 Breakfast',lunch:'☀️ Lunch',snacks:'🍎 Snacks',dinner:'🌙 Dinner'};
+  // Recompute full nutrient totals (vitamins + minerals) from that day's meals
+  const dt=totalsFrom(day.meals||{});
+  const vmRows=[
+    ['🥕 Vit A',rf(dt.vA,0)+' / '+(tgt.vA||0),'mcg'],['⚡ Vit B1',rf(dt.vB,2)+' / '+(tgt.vB||0),'mg'],
+    ['🍊 Vit C',rf(dt.vC,0)+' / '+(tgt.vC||0),'mg'],['🌞 Vit D',rf(dt.vD,1)+' / '+(tgt.vD||0),'mcg'],
+    ['🥩 Vit B12',rf(dt.vB12,1)+' / '+(tgt.vB12||0),'mcg'],['🥦 Fiber',rf(dt.fb,1)+' / '+(tgt.fib||0),'g'],
+    ['🧂 Sodium',rf(dt.na,0)+' / '+(tgt.na||2000),'mg'],['🍌 Potassium',rf(dt.k,0)+' / '+(tgt.k||3500),'mg'],
+    ['🦴 Calcium',rf(dt.ca,0)+' / '+(tgt.ca||1000),'mg'],['🩸 Iron',rf(dt.fe,1)+' / '+(tgt.fe||17),'mg'],
+  ];
   body.innerHTML=`
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
       <div style="background:var(--gl);border-radius:var(--rsm);padding:10px;text-align:center"><div style="font-size:20px;font-weight:800;color:var(--gd)">${day.cal}</div><div style="font-size:10px;color:var(--g)">kcal</div></div>
       <div style="background:var(--of);border-radius:var(--rsm);padding:10px;text-align:center"><div style="font-size:14px;font-weight:700;color:var(--c9)">P:${day.pro}g C:${day.carb}g F:${day.fat}g</div><div style="font-size:10px;color:var(--c4)">macros</div></div>
+    </div>
+    <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--c4);margin:4px 0 6px">💊 Vitamins &amp; minerals that day (eaten / target)</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px 10px;margin-bottom:14px">
+      ${vmRows.map(([n,v,u])=>`<div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 0;border-bottom:1px solid var(--c1)"><span style="color:var(--c6)">${n}</span><span style="font-weight:600;color:var(--c9)">${v}<span style="color:var(--c4);font-weight:400"> ${u}</span></span></div>`).join('')}
     </div>
     ${['breakfast','lunch','snacks','dinner'].map(key=>{
       const items=(day.meals||{})[key]||[];
