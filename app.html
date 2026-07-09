@@ -515,6 +515,12 @@
 
     <div class="sb">💾 All data saved in this browser</div>
     <button class="btn bse" style="margin-top:10px" onclick="editP()">✏️ Edit profile</button>
+    <div style="display:flex;gap:10px;margin-top:10px">
+      <button class="btn bse" style="flex:1;margin-top:0" onclick="exportData()">⬇️ Export data</button>
+      <button class="btn bse" style="flex:1;margin-top:0" onclick="document.getElementById('imp-file').click()">⬆️ Import data</button>
+      <input type="file" id="imp-file" accept=".json,application/json" style="display:none" onchange="importData(event)">
+    </div>
+    <div style="font-size:11px;color:var(--c4);text-align:center;margin-top:6px">Export saves a backup file of everything — profile, meals, history, weights. Import restores it on any device or browser.</div>
     <button class="db" onclick="clearAll()">🗑️ Clear all data</button>
     <a href="index.html" class="bks">← Back to website</a>
     <div style="text-align:center;margin-top:24px;font-size:11px;color:var(--c4)">AI Nutrition Tracker · Crafted by <span style="color:var(--g);font-weight:600">Idhun</span></div>
@@ -571,14 +577,86 @@ function checkDayRollover(){
   return false;
 }
 
-function save(){try{localStorage.setItem(SK,JSON.stringify({prof,tgt,meals,wml}));localStorage.setItem(DAY_KEY,todayStr());snapshotToday();}catch(e){}}
-function load(){try{const d=JSON.parse(localStorage.getItem(SK));if(d){prof=d.prof||prof;tgt=d.tgt||tgt;meals=d.meals||meals;wml=d.wml||0;
-  // Recompute targets on load so existing users gain new fields (e.g. minerals)
-  // without re-onboarding. Data (meals, weights, history) is never erased.
+let _lastBk=0;
+function save(){try{localStorage.setItem(SK,JSON.stringify({prof,tgt,meals,wml}));localStorage.setItem(DAY_KEY,todayStr());snapshotToday();
+  if(Date.now()-_lastBk>3600*1000){backupData();_lastBk=Date.now();}}catch(e){}}
+// ── DATA PERSISTENCE & MIGRATION LAYER ──────────────────────────────────────
+// Guarantees old data survives app updates:
+//  1. Storage keys are permanent (nt_v4, nt_weights, nt_hist, tz_offset, gemini_key)
+//  2. A schema version + migrate() upgrades old data in place, never discards it
+//  3. save() keeps a rolling backup (nt_backup); if the main record is ever
+//     corrupted, load() silently restores from the backup instead of resetting
+//  4. healData() fills any fields added in newer versions (e.g. minerals) with
+//     safe defaults so old records keep working
+const DATA_VER=2;
+const VER_KEY='nt_schema_ver';
+const BK_KEY='nt_backup';
+
+function healData(){
+  // Ensure meals structure is complete
+  if(!meals||typeof meals!=='object')meals={breakfast:[],lunch:[],snacks:[],dinner:[]};
+  ['breakfast','lunch','snacks','dinner'].forEach(k=>{if(!Array.isArray(meals[k]))meals[k]=[];});
+  // Fill missing nutrient fields on old meal items (added in later versions)
+  const fill=it=>{['cal','p','c','f','fb','vA','vB','vC','vD','vB12','na','k','ca','fe'].forEach(f=>{if(typeof it[f]!=='number')it[f]=0;});};
+  Object.values(meals).flat().forEach(fill);
+  try{
+    const h=loadHistory();let changed=false;
+    Object.values(h).forEach(day=>{if(day&&day.meals)Object.values(day.meals).flat().forEach(it=>{if(typeof it.na!=='number'){fill(it);changed=true;}});});
+    if(changed)saveHistory(h);
+  }catch(e){}
+}
+
+function migrate(fromVer){
+  // Room for future format changes: upgrade step by step, never delete.
+  // v1 → v2: mineral fields introduced — healData() fills them.
+  localStorage.setItem(VER_KEY,String(DATA_VER));
+}
+
+function backupData(){
+  try{
+    const snap={t:Date.now(),main:localStorage.getItem(SK),hist:localStorage.getItem(HIST_KEY),
+      wt:localStorage.getItem(WT_KEY),tz:localStorage.getItem('tz_offset'),day:localStorage.getItem(DAY_KEY)};
+    localStorage.setItem(BK_KEY,JSON.stringify(snap));
+  }catch(e){}
+}
+
+function tryRestoreBackup(){
+  try{
+    const bk=JSON.parse(localStorage.getItem(BK_KEY));
+    if(bk&&bk.main){
+      localStorage.setItem(SK,bk.main);
+      if(bk.hist)localStorage.setItem(HIST_KEY,bk.hist);
+      if(bk.wt)localStorage.setItem(WT_KEY,bk.wt);
+      if(bk.tz)localStorage.setItem('tz_offset',bk.tz);
+      if(bk.day)localStorage.setItem(DAY_KEY,bk.day);
+      return true;
+    }
+  }catch(e){}
+  return false;
+}
+
+function load(){
+  let d=null;
+  try{d=JSON.parse(localStorage.getItem(SK));}catch(e){d=null;}
+  // Main record unreadable? Restore from the automatic backup instead of resetting
+  if(!d&&tryRestoreBackup()){
+    try{d=JSON.parse(localStorage.getItem(SK));}catch(e){d=null;}
+    if(d)toast('Data restored from backup');
+  }
+  if(!d)return false;
+  prof=d.prof||prof;tgt=d.tgt||tgt;meals=d.meals||meals;wml=d.wml||0;
+  // Run pending migrations (old app version → this version), never destructive
+  const stored=parseInt(localStorage.getItem(VER_KEY)||'1');
+  if(stored<DATA_VER)migrate(stored);
+  // Heal any missing fields introduced by newer versions
+  healData();
+  // Recompute targets so existing users gain new targets (e.g. minerals)
+  // without re-onboarding. Meals, weights and history are never erased.
   if(prof&&prof.weight&&prof.age)tgt=calcT(prof);
-  // Reset the Today page if the calendar day has changed since last save
   checkDayRollover();
-  return true;}}catch(e){}return false;}
+  backupData();
+  return true;
+}
 function ssc(id){document.querySelectorAll('.sc').forEach(s=>s.classList.remove('active'));document.getElementById('sc-'+id).classList.add('active');window.scrollTo(0,0);}
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
 function rf(n,d=1){return parseFloat((n||0).toFixed(d));}
@@ -1628,9 +1706,44 @@ function editP(){
   document.getElementById('fw').value=prof.weight||'';
 }
 
+// ── EXPORT / IMPORT (survives browser clears & device changes) ─────────────
+function exportData(){
+  const dump={app:'AI Nutrition Tracker',ver:DATA_VER,exported:new Date().toISOString(),
+    main:localStorage.getItem(SK),hist:localStorage.getItem(HIST_KEY),wt:localStorage.getItem(WT_KEY),
+    tz:localStorage.getItem('tz_offset'),day:localStorage.getItem(DAY_KEY)};
+  const blob=new Blob([JSON.stringify(dump,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='nutrition-tracker-backup-'+todayStr()+'.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('Backup file downloaded');
+}
+function importData(ev){
+  const file=ev.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const dump=JSON.parse(e.target.result);
+      if(!dump.main)throw new Error('not a valid backup');
+      if(!confirm('Restore this backup? Current data on this device will be replaced.'))return;
+      localStorage.setItem(SK,dump.main);
+      if(dump.hist)localStorage.setItem(HIST_KEY,dump.hist);
+      if(dump.wt)localStorage.setItem(WT_KEY,dump.wt);
+      if(dump.tz)localStorage.setItem('tz_offset',dump.tz);
+      if(dump.day)localStorage.setItem(DAY_KEY,dump.day);
+      load();
+      launch();
+      toast('Data restored ✓');
+    }catch(err){toast('Invalid backup file');}
+  };
+  reader.readAsText(file);
+  ev.target.value='';
+}
+
 function clearAll(){
   if(!confirm('Delete all data including meal history and weight records?'))return;
-  try{localStorage.removeItem(SK);localStorage.removeItem(WT_KEY);localStorage.removeItem(HIST_KEY);}catch(e){}
+  try{localStorage.removeItem(SK);localStorage.removeItem(WT_KEY);localStorage.removeItem(HIST_KEY);localStorage.removeItem(BK_KEY);localStorage.removeItem(DAY_KEY);localStorage.removeItem(VER_KEY);}catch(e){}
   prof={sex:'male',goal:'lose',life:'sedentary',diet:'veg'};
   tgt={};meals={breakfast:[],lunch:[],dinner:[],snacks:[]};wml=0;
   ssc('splash');
