@@ -1291,22 +1291,58 @@ async function scanWithGemini(){
   try{
     const b64=photoToB64();
     const prompt='You are a nutrition analysis expert familiar with Indian and world cuisine. Identify EVERY distinct food item visible in this photo. For EACH item, estimate the visible portion in grams and its nutrition for that portion. Respond with ONLY a JSON array, no markdown, no backticks, no explanation. Each element: {"name":string,"grams":number,"cal":number,"p":number(protein g),"cb":number(carbs g),"f":number(fat g),"fb":number(fiber g),"vA":number(vitamin A mcg),"vB":number(vitamin B1 mg),"vC":number(vitamin C mg),"vD":number(vitamin D mcg),"vB12":number(vitamin B12 mcg),"na":number(sodium mg),"k":number(potassium mg),"ca":number(calcium mg),"fe":number(iron mg)}. If nothing edible is visible return [].';
-    const resp=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key='+encodeURIComponent(key),{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        contents:[{parts:[
-          {text:prompt},
-          {inline_data:{mime_type:'image/jpeg',data:b64}}
-        ]}],
-        generationConfig:{temperature:0.2,maxOutputTokens:2048}
-      })
+    const body=JSON.stringify({
+      contents:[{parts:[
+        {text:prompt},
+        {inline_data:{mime_type:'image/jpeg',data:b64}}
+      ]}],
+      generationConfig:{temperature:0.2,maxOutputTokens:2048}
     });
-    if(!resp.ok){
-      const et=await resp.text();
-      if(resp.status===400&&/API key/i.test(et))throw new Error('Invalid API key. Tap "change" above and paste it again.');
-      if(resp.status===429)throw new Error('Daily free limit reached. Try again tomorrow or use the search below.');
-      throw new Error('Scan failed ('+resp.status+'). Check your internet and try again.');
+    // Try models in order of most-reliable free image quota first.
+    // (Gemini 1.5 and 2.0 were shut down in 2026 and return 404 — removed.)
+    // If one is rate-limited (429) or unavailable, fall through to the next.
+    let models=['gemini-2.5-flash','gemini-2.5-flash-lite','gemini-flash-latest','gemini-2.5-pro'];
+    // Self-healing: ask Google which models THIS key can actually use, so we
+    // never break when Google renames/retires models. Prefer flash (fast+free).
+    try{
+      const lm=await fetch('https://generativelanguage.googleapis.com/v1beta/models?key='+encodeURIComponent(key));
+      if(lm.ok){
+        const ld=await lm.json();
+        const avail=(ld.models||[])
+          .filter(m=>(m.supportedGenerationMethods||[]).includes('generateContent'))
+          .map(m=>(m.name||'').replace('models/',''))
+          .filter(n=>/gemini/i.test(n)&&!/vision|embedding|aqa|tts|image|audio/i.test(n));
+        if(avail.length){
+          // Sort: flash-lite first (highest free quota), then flash, then others
+          avail.sort((a,b)=>{
+            const score=n=>/flash-lite/.test(n)?0:/flash/.test(n)?1:2;
+            return score(a)-score(b);
+          });
+          models=avail;
+        }
+      }
+    }catch(e){/* fall back to the hardcoded list */}
+    let resp=null,lastStatus=0,lastErr='';
+    for(const m of models){
+      as.innerHTML='<div class="scan"><div class="spin"></div>Analysing with '+m.replace('gemini-','Gemini ')+'…</div>';
+      try{
+        const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+m+':generateContent?key='+encodeURIComponent(key),{
+          method:'POST',headers:{'Content-Type':'application/json'},body:body
+        });
+        if(r.ok){resp=r;break;}
+        lastStatus=r.status;lastErr=await r.text();
+        // 400 with "API key" = bad key → stop immediately, trying other models won't help
+        if(r.status===400&&/API[_ ]?key/i.test(lastErr))break;
+        // 429 (rate limit) or 503 (busy) → try the next model
+        if(r.status===429||r.status===503)continue;
+        // Other errors (e.g. 404 model not found) → try next model too
+        continue;
+      }catch(e){lastErr=e.message;continue;}
+    }
+    if(!resp){
+      if(lastStatus===400&&/API[_ ]?key/i.test(lastErr))throw new Error('Invalid API key. Tap "change" above and paste it again.');
+      if(lastStatus===429)throw new Error('Google\'s free servers are busy right now. Wait ~30 seconds and tap Retry — or use the search below.');
+      throw new Error('Scan failed'+(lastStatus?' ('+lastStatus+')':'')+'. Tap Retry, or use the search below.');
     }
     const data=await resp.json();
     let txt=((data.candidates||[])[0]||{}).content;
@@ -1335,7 +1371,8 @@ async function scanWithGemini(){
     </div>`;
   }catch(err){
     as.style.display='none';ar.style.display='block';
-    ar.innerHTML=`<div class="aic"><div class="ait" style="color:rgba(255,255,255,.7)">⚠️ ${err.message||'Scan failed'}. Use the food search or manual entry below.</div></div>`;
+    ar.innerHTML=`<div class="aic"><div class="ait" style="color:rgba(255,255,255,.85)">⚠️ ${err.message||'Scan failed'}</div>
+      <button class="aab" style="margin-top:10px" onclick="scanWithGemini()">🔄 Retry scan</button></div>`;
   }
 }
 
